@@ -6,7 +6,9 @@ pub const VERSION_WITH_CHECKSUM: u32 = 0x0100_0000;
 pub const VERSION_SKIP_CHECKSUM: u32 = 0x0100_0001;
 
 pub fn checksum(payload: &[u8]) -> u32 {
-    payload.iter().fold(0u32, |sum, &byte| sum.wrapping_add(u32::from(byte)))
+    payload
+        .iter()
+        .fold(0u32, |sum, &byte| sum.wrapping_add(u32::from(byte)))
 }
 
 pub fn checksum_required(local: u32, peer: u32) -> bool {
@@ -27,11 +29,26 @@ mod tests {
     }
     #[test]
     fn classic_peer_requires_checksum() {
-        assert!(checksum_valid(255, &[255], VERSION_SKIP_CHECKSUM, VERSION_WITH_CHECKSUM));
-        assert!(!checksum_valid(0, &[255], VERSION_SKIP_CHECKSUM, VERSION_WITH_CHECKSUM));
+        assert!(checksum_valid(
+            255,
+            &[255],
+            VERSION_SKIP_CHECKSUM,
+            VERSION_WITH_CHECKSUM
+        ));
+        assert!(!checksum_valid(
+            0,
+            &[255],
+            VERSION_SKIP_CHECKSUM,
+            VERSION_WITH_CHECKSUM
+        ));
     }
     #[test]
     fn negotiated_new_version_skips_checksum() {
-        assert!(checksum_valid(0, &[255], VERSION_SKIP_CHECKSUM, VERSION_SKIP_CHECKSUM));
+        assert!(checksum_valid(
+            0,
+            &[255],
+            VERSION_SKIP_CHECKSUM,
+            VERSION_SKIP_CHECKSUM
+        ));
     }
 }

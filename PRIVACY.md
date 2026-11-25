@@ -24,7 +24,7 @@ NekoFlash does not operate its own account/telemetry backend.
 
 ## Files and raw diagnostics
 
-NekoFlash uses shared storage/workspace paths for firmware, imported files, logs and diagnostic exports. Raw evidence under paths such as `/sdcard/Download/NekoFlash/` can contain commands, device properties, filenames, USB identifiers, Wireless debugging endpoints and operation results.
+NekoFlash uses shared storage/workspace paths for firmware, imported files, logs and diagnostic exports. Raw evidence under paths such as `/sdcard/Download/NekoFlash-Rust/` can contain commands, device properties, filenames, USB identifiers, Wireless debugging endpoints and operation results.
 
 Shared storage is not app-private. Other applications with sufficient storage access may read those files. Do not publish raw logs/screenshots without review.
 

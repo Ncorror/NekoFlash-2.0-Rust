@@ -364,7 +364,7 @@ assert 'viewModel.runSideload(source)' in main
 assert 'R.id.btnSideloadImport' not in main
 assert 'svcCard.addView(row(getString(R.string.settings_import_workspace)' in main
 assert 'getString(R.string.settings_import_workspace_sub)) { startImportFilePicker() }' in main
-assert 'private val folderName = "NekoFlash"' in main
+assert 'private val folderName = RustWorkspace.FOLDER' in main
 assert 'fun runSideload(file: File) = runSideload(FirmwareSource.WorkspaceFile(file))' in vm
 assert 'proto.sideloadZip(source, getApplication<Application>().contentResolver)' in vm
 assert 'persistPendingSideloadVerification(source, proto)' in vm

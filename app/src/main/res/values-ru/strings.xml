@@ -88,7 +88,7 @@
     <string name="terminal_welcome_host_value">Android %1$s · API %2$d</string>
     <string name="terminal_welcome_abi_label">ABI</string>
     <string name="terminal_welcome_workspace_label">ПАПКА</string>
-    <string name="terminal_welcome_workspace_value">Private HOME · Download/NekoFlash (доступ ко всем файлам)</string>
+    <string name="terminal_welcome_workspace_value">Private HOME · Download/NekoFlash-Rust (доступ ко всем файлам)</string>
     <string name="terminal_welcome_binary_label">СИСТЕМНАЯ ОБОЛОЧКА</string>
     <string name="terminal_welcome_binary_enabled">ВКЛЮЧЕНО · СОХРАНЕНО</string>
     <string name="terminal_welcome_binary_disabled">ВЫКЛЮЧЕНО · СОХРАНЕНО</string>
@@ -156,7 +156,7 @@
 Защита от окон поверх приложения: %4$s
 
 Используемые разрешения:
-• Доступ ко всем файлам — читает выбранные пользователем образы, ZIP/APK и диагностические файлы из /sdcard/Download/NekoFlash.
+• Доступ ко всем файлам — читает выбранные пользователем образы, ZIP/APK и диагностические файлы из /sdcard/Download/NekoFlash-Rust.
 • Уведомления — показывает foreground-уведомление во время операции.
 • WakeLock — держит CPU активным только во время прошивки или sideload и освобождается после операции.
 • Hide overlay windows — на Android 12+ блокирует чужие окна поверх приложения во время чувствительных действий.
@@ -251,7 +251,7 @@
     <string name="local_terminal_invalid_syntax">В локальной команде осталась незакрытая кавычка или обратная косая черта в конце.</string>
     <string-array name="local_terminal_help">
         <item>Команды хоста: help, echo, pwd, ls, cd, find, cat, grep, cp, mv, mkdir, rm и clear.</item>
-        <item>~ указывает на Download/NekoFlash. Пути с пробелами заключайте в кавычки.</item>
+        <item>~ указывает на Download/NekoFlash-Rust. Пути с пробелами заключайте в кавычки.</item>
         <item>pwd</item>
         <item>ls</item>
         <item>cd &quot;Мои образы&quot;</item>
@@ -311,7 +311,7 @@
     <string name="settings_telegram_sub">Группа тестировщиков NekoFlash</string>
     <string name="settings_link_open_error">Не удалось открыть ссылку: %1$s</string>
     <string name="settings_import_workspace">Импорт в рабочую папку</string>
-    <string name="settings_import_workspace_sub">Скопировать файл в Download/NekoFlash</string>
+    <string name="settings_import_workspace_sub">Скопировать файл в Download/NekoFlash-Rust</string>
     <string name="settings_clear_workspace">🗑 Очистить рабочую папку</string>
     <string name="settings_clear_workspace_sub">Удалить импортированные файлы из рабочей папки</string>
     <string name="settings_clear_workspace_confirm">Удалить все файлы в:

@@ -37,7 +37,10 @@ pub fn validate_download(payload: i64, device_max: Option<i64>) -> Result<(), Do
     }
     let payload = payload as u64;
     if payload > WIRE_MAX_BYTES {
-        return Err(DownloadRejection::WireLimit { payload, max: WIRE_MAX_BYTES });
+        return Err(DownloadRejection::WireLimit {
+            payload,
+            max: WIRE_MAX_BYTES,
+        });
     }
     if let Some(max) = device_max.filter(|&n| n > 0).map(|n| n as u64) {
         if payload > max {
@@ -56,7 +59,12 @@ pub fn parse_boolean(raw: Option<&str>) -> Option<bool> {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum SnapshotState { None, Snapshotted, Merging, Unknown }
+pub enum SnapshotState {
+    None,
+    Snapshotted,
+    Merging,
+    Unknown,
+}
 
 pub fn parse_snapshot_state(raw: Option<&str>) -> SnapshotState {
     match raw.unwrap_or("").trim().to_ascii_lowercase().as_str() {
@@ -72,8 +80,14 @@ mod tests {
     use super::*;
     #[test]
     fn data_acceptance() {
-        assert_eq!(validate_data_reply("0000ABcd", 0xabcd), DataReply::Accepted(0xabcd));
-        assert_eq!(validate_data_reply("FFFFFFFF", WIRE_MAX_BYTES), DataReply::Accepted(WIRE_MAX_BYTES));
+        assert_eq!(
+            validate_data_reply("0000ABcd", 0xabcd),
+            DataReply::Accepted(0xabcd)
+        );
+        assert_eq!(
+            validate_data_reply("FFFFFFFF", WIRE_MAX_BYTES),
+            DataReply::Accepted(WIRE_MAX_BYTES)
+        );
     }
     #[test]
     fn malformed_data() {
@@ -83,21 +97,39 @@ mod tests {
     }
     #[test]
     fn data_mismatch() {
-        assert_eq!(validate_data_reply("00000002", 1), DataReply::Mismatch { expected: 1, actual: 2 });
+        assert_eq!(
+            validate_data_reply("00000002", 1),
+            DataReply::Mismatch {
+                expected: 1,
+                actual: 2
+            }
+        );
     }
     #[test]
     fn size_boundaries() {
         assert_eq!(validate_download(0, None), Err(DownloadRejection::Empty));
         assert_eq!(validate_download(-1, None), Err(DownloadRejection::Empty));
         assert!(validate_download(WIRE_MAX_BYTES as i64, None).is_ok());
-        assert_eq!(validate_download(WIRE_MAX_BYTES as i64 + 1, None), Err(DownloadRejection::WireLimit { payload: WIRE_MAX_BYTES + 1, max: WIRE_MAX_BYTES }));
+        assert_eq!(
+            validate_download(WIRE_MAX_BYTES as i64 + 1, None),
+            Err(DownloadRejection::WireLimit {
+                payload: WIRE_MAX_BYTES + 1,
+                max: WIRE_MAX_BYTES
+            })
+        );
     }
     #[test]
     fn device_limit() {
         assert!(validate_download(100, Some(100)).is_ok());
         assert!(validate_download(100, Some(0)).is_ok());
         assert!(validate_download(100, Some(-1)).is_ok());
-        assert_eq!(validate_download(101, Some(100)), Err(DownloadRejection::DeviceLimit { payload: 101, max: 100 }));
+        assert_eq!(
+            validate_download(101, Some(100)),
+            Err(DownloadRejection::DeviceLimit {
+                payload: 101,
+                max: 100
+            })
+        );
     }
     #[test]
     fn values() {
@@ -105,8 +137,14 @@ mod tests {
         assert_eq!(parse_boolean(Some("0")), Some(false));
         assert_eq!(parse_boolean(Some("unknown")), None);
         assert_eq!(parse_snapshot_state(Some("cancelled")), SnapshotState::None);
-        assert_eq!(parse_snapshot_state(Some("MERGING")), SnapshotState::Merging);
-        assert_eq!(parse_snapshot_state(Some("snapshotted")), SnapshotState::Snapshotted);
+        assert_eq!(
+            parse_snapshot_state(Some("MERGING")),
+            SnapshotState::Merging
+        );
+        assert_eq!(
+            parse_snapshot_state(Some("snapshotted")),
+            SnapshotState::Snapshotted
+        );
         assert_eq!(parse_snapshot_state(None), SnapshotState::Unknown);
     }
 }

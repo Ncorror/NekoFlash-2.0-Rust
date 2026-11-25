@@ -59,3 +59,10 @@ Local package verification passed: Bash syntax, Python syntax, TOML parsing, wor
 - Published main `7741dc03da6d745749cae2bcae4d56cfe20181ac` to the private Rust repository. Termux compiled the workspace and passed 23/23 tests (8 ADB, 9 Fastboot, 5 inventory, 1 facade).
 - First GitHub CI failed: Android revision-14 and i18n guards expected the original application ID; Rust Clippy rejected two constant-sized chunk iterators. Updated the guards to require the independent `.rust` ID, and changed the ADB header codec to fixed-size array chunk iteration without relaxing validation or lint rules.
 - CI rerun, Android APK, external workspace separation, JNI integration and hardware parity remain unverified.
+
+## 2026-11-25 — fork isolation and build audit
+
+- At 3d2a085 the Rust workflow passed. The Android job passed the repository checks, JVM tests and lint; its emulator commands and evidence collectors still addressed the upstream debug application. The fork now runs instrumentation, fixture providers and run-as collection under ru.forum.adbfastboottool.rust.dev. The Kotlin package and runner class remain compatible.
+- The app, terminal link, imports, diagnostics, scoped file sharing and instrumentation use Download/NekoFlash-Rust. Existing public files stay in place. Private fallbacks remain per application ID. The fork's Termux checkout, publication defaults and maintenance scripts target the Rust repository. Keep the upstream checkout at f82484d for comparison with its push URL disabled.
+- In the Linux checkout, all 23 Rust tests, locked all-target Clippy, rustfmt, REV27 and its predecessor guards, localization, documentation, tester-kit, diagnostic ZIP, branch-cleanup and repository-security checks passed. Rust CI now enforces formatting.
+- Audit: Android already serializes Fastboot transactions and owns interface permissions, USB detach, SAF, and the cancellable USBFS URB queue. ADB has a single packet dispatcher and existing pairing/TLS and identity lifetimes. Sparse and filesystem tools have independent installed-APK checks. Preserve those boundaries and keep the existing transfer engines available during device qualification.

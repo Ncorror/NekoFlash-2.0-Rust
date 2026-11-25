@@ -20,7 +20,7 @@ names += ['terminal-rotated-command-landscape', 'terminal-rotated-command-portra
 missing = []
 for name in names:
     result = subprocess.run([
-        'adb', 'exec-out', 'run-as', 'ru.forum.adbfastboottool.dev',
+        'adb', 'exec-out', 'run-as', 'ru.forum.adbfastboottool.rust.dev',
         'cat', f'files/ui-test-output/{name}.png'
     ], timeout=30, capture_output=True)
     data = result.stdout

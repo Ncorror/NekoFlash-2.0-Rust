@@ -13,7 +13,7 @@ import subprocess
 import sys
 from urllib.parse import quote
 
-REPO = "Ncorror/NekoFlash-2.0"
+REPO = "Ncorror/NekoFlash-2.0-Rust"
 
 
 def api(path: str, method: str = "GET"):

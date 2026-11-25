@@ -116,7 +116,7 @@ class DeviceViewModel(application: Application) : AndroidViewModel(application) 
     internal val localTerminalHome = File(application.filesDir, "HOME")
     private val publicNekoWorkspace = File(
         Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-        "NekoFlash",
+        RustWorkspace.FOLDER,
     )
     internal val localShell = LocalShell(
         availableSpace = { StatFs(it.absolutePath).availableBytes },
@@ -510,7 +510,7 @@ class DeviceViewModel(application: Application) : AndroidViewModel(application) 
         logFile = createdLog
         traceLogFile = store.currentTraceFile()
         persistSessionSummary()
-        log("Log file: /sdcard/Download/NekoFlash/logs/${createdLog?.name ?: "log-$stamp.txt"}")
+        log("Log file: ${logsDir.absolutePath}/${createdLog?.name ?: "log-$stamp.txt"}")
         log("ℹ️ " + text(R.string.rev11_log_trace_location_info))
     }
 

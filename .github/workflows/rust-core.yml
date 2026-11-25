@@ -16,5 +16,6 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - run: rustup toolchain install stable --profile minimal --component rustfmt --component clippy
+      - run: cargo +stable fmt --all --check
       - run: cargo +stable clippy --locked --workspace --all-targets -- -D warnings
       - run: cargo +stable test --workspace --locked

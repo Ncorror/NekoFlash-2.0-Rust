@@ -144,7 +144,7 @@ class MainActivity : AppCompatActivity() {
     private var operationSessionId: String? = null
 
     private val actionUsbPermission: String by lazy { "$packageName.USB_PERMISSION" }
-    private val folderName = "NekoFlash"
+    private val folderName = RustWorkspace.FOLDER
     private lateinit var workspacePath: File
     private lateinit var importFileLauncher: ActivityResultLauncher<Intent>
     private lateinit var sideloadZipLauncher: ActivityResultLauncher<Intent>
@@ -1887,7 +1887,7 @@ class MainActivity : AppCompatActivity() {
 
     /**
      * A shell command, with an unquoted `> file` / `>> file` saved on this phone. The file is
-     * resolved exactly like an `adb pull` destination: relative to /sdcard/Download/NekoFlash.
+     * resolved exactly like an `adb pull` destination: relative to /sdcard/Download/NekoFlash-Rust.
      */
     private fun adbShellAction(command: String): TerminalAction? {
         return when (val parsed = AdbShellRedirectPolicy.parse(command)) {
@@ -2690,7 +2690,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun initWorkspace() {
-        // Рабочая папка теперь в системной папке «Загрузки»: /sdcard/Download/NekoFlash
+        // Рабочая папка теперь в системной папке «Загрузки»: /sdcard/Download/NekoFlash-Rust
         val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
         workspacePath = File(downloadsDir, folderName)
         if (!workspacePath.exists() && !workspacePath.mkdirs()) {

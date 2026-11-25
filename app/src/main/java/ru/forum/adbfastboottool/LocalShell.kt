@@ -1198,7 +1198,7 @@ esac
             "Ambiguous diagnostics follow ADB/Fastboot context; prefix with local for host access.",
             "&& runs the next command only after success; | passes output to the next command.",
             "Paths are not workspace-confined: use absolute paths, .., or ~; access is limited by Android permissions.",
-            "HOME is private; ~/Download/NekoFlash links to the public Download/NekoFlash folder when available.",
+            "HOME is private; ~/Download/NekoFlash-Rust links to the public Download/NekoFlash-Rust folder when available.",
             "sh SCRIPT runs Android /system/bin/sh; bash is a compatibility alias to sh (Bash-only syntax may fail).",
             "Logs and .nekoflash-* staging files can be read but not modified.",
             "System shell is off by default; enable and save: export NEKO_USE_DEVICE_BINARIES=1",

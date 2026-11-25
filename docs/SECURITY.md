@@ -35,7 +35,7 @@ This persistence is intentional behavior, not an unresolved release blocker.
 
 ## Workspace/imports
 
-Firmware, logs and imported files may live in shared `Download/NekoFlash` storage. Shared storage is not a secret vault. Import staging uses a reserved same-filesystem directory, path validation, a lock, free-space checks, fsync and atomic publication.
+Firmware, logs and imported files may live in shared `Download/NekoFlash-Rust` storage. Shared storage is not a secret vault. Import staging uses a reserved same-filesystem directory, path validation, a lock, free-space checks, fsync and atomic publication.
 
 ## Release chain
 

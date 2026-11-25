@@ -128,5 +128,5 @@ assert 'viewModel.selectQuickFlashSource(FirmwareSource.WorkspaceFile(it))' in m
 assert 'viewModel.runFlash(partition, selection.source(), chosenSlot, expectedSizeBytes = selection.expectedSizeBytes)' in main
 assert 'viewModel.runFlash(partition, file, slot)' in main  # legacy quick actions
 assert 'viewModel.addFlashQueueFile(partition, file)' in main
-assert 'private val folderName = "NekoFlash"' in main
+assert 'private val folderName = RustWorkspace.FOLDER' in main
 print('PASS REV13: direct SAF via Native USBFS dup(fd), original File and URB safety, RU/EN')

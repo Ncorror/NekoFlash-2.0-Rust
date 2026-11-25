@@ -10,17 +10,33 @@ pub struct Reply {
 
 pub fn decode_reply(bytes: &[u8]) -> Reply {
     // Java US_ASCII decodes non-ASCII bytes to U+FFFD.
-    let decoded: String = bytes.iter().filter(|&&b| b != 0).map(|&b| {
-        if b.is_ascii() { char::from(b) } else { '\u{fffd}' }
-    }).collect();
+    let decoded: String = bytes
+        .iter()
+        .filter(|&&b| b != 0)
+        .map(|&b| {
+            if b.is_ascii() {
+                char::from(b)
+            } else {
+                '\u{fffd}'
+            }
+        })
+        .collect();
     let raw = decoded.trim().to_owned();
     let mut chars = raw.chars();
     let prefix: String = chars.by_ref().take(4).collect();
     if prefix.chars().count() < 4 {
-        return Reply { kind: "UNKNOWN".to_owned(), payload: raw.clone(), raw };
+        return Reply {
+            kind: "UNKNOWN".to_owned(),
+            payload: raw.clone(),
+            raw,
+        };
     }
     let payload = chars.as_str().trim().to_owned();
-    Reply { kind: prefix, payload, raw }
+    Reply {
+        kind: prefix,
+        payload,
+        raw,
+    }
 }
 
 #[cfg(test)]
@@ -28,7 +44,13 @@ mod tests {
     use super::*;
     #[test]
     fn standard_replies() {
-        for (raw, kind, payload) in [("OKAY", "OKAY", ""), ("FAILbad", "FAIL", "bad"), ("INFO hello", "INFO", "hello"), ("TEXT hello", "TEXT", "hello"), ("DATA00000001", "DATA", "00000001")] {
+        for (raw, kind, payload) in [
+            ("OKAY", "OKAY", ""),
+            ("FAILbad", "FAIL", "bad"),
+            ("INFO hello", "INFO", "hello"),
+            ("TEXT hello", "TEXT", "hello"),
+            ("DATA00000001", "DATA", "00000001"),
+        ] {
             let r = decode_reply(raw.as_bytes());
             assert_eq!((r.kind.as_str(), r.payload.as_str()), (kind, payload));
         }

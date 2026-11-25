@@ -51,7 +51,7 @@ gradle = (root/'app/build.gradle').read_text()
 assert 'applicationId = "ru.forum.adbfastboottool.rust"' in gradle
 assert 'applicationIdSuffix = ".dev"' in gradle
 assert 'versionNameSuffix = "-dev"' in gradle
-assert 'private val folderName = "NekoFlash"' in main
+assert 'private val folderName = RustWorkspace.FOLDER' in main
 
 # Release tags must pass the same source and JVM gates before signing/publishing.
 release = (root/'.github/workflows/release.yml').read_text()

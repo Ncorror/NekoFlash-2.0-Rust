@@ -51,12 +51,18 @@ for key in plural_en:
     for variants in (plural_en[key], plural_ru[key]):
         assert all(text and text.strip() for text in variants.values()), ("Empty plural", key)
 
-# No package/source/workspace migration was approved.
+# The Kotlin namespace stays stable while the Rust app owns its workspace.
 gradle = (ROOT/"app/build.gradle").read_text()
 main = (ROOT/"app/src/main/java/ru/forum/adbfastboottool/MainActivity.kt").read_text()
 assert 'namespace = \'ru.forum.adbfastboottool\'' in gradle
 assert 'applicationId = "ru.forum.adbfastboottool.rust"' in gradle
-assert 'private val folderName = "NekoFlash"' in main
+assert 'private val folderName = RustWorkspace.FOLDER' in main
+workspace = ROOT / "app/src/main/java/ru/forum/adbfastboottool/RustWorkspace.kt"
+assert 'const val FOLDER = "NekoFlash-Rust"' in workspace.read_text()
+paths = ET.parse(ROOT / "app/src/main/res/xml/file_paths.xml").getroot()
+assert {p.get("path") for p in paths.findall("external-path")} == {
+    "Download/NekoFlash-Rust/logs/", "Download/NekoFlash-Rust/reports/",
+}
 assert 'Environment.DIRECTORY_DOWNLOADS' in main
 assert 'workspacePath = File(downloadsDir, folderName)' in main
 
@@ -146,4 +152,4 @@ for key in ("rev23_preparing_image", "rev23_image_part"):
     assert "R.string." + key in vm
 
 print(f"PASS I18N: {len(en)} paired strings, {len(plural_en)} plural keys, "
-      "format-safe RU/EN, package and workspace paths unchanged")
+      "format-safe RU/EN, independent application and workspace")
