@@ -25,7 +25,9 @@ class BundledFilesystemToolsTest {
             val bytes = (if (type == "ext4") 32L else 128L) * 1024 * 1024
             val image = FastbootFilesystemFormatter(tools, AndroidImageExtents::nextData)
                 .generate(FilesystemSpec(type, bytes, options = options), work) {}
-            assertEquals(bytes, AndroidSparseImage.inspect(image).expandedBytes)
+            val inspected = AndroidSparseImage.inspect(image)
+            assertEquals(AndroidSparseImage.inspectKotlin(image), inspected)
+            assertEquals(bytes, inspected.expandedBytes)
             assertTrue(image.length() < bytes)
             assertEquals(listOf(image), work.listFiles()!!.toList())
             val outputs = File(context.filesDir, "mkfs-test-output").also { it.mkdirs() }

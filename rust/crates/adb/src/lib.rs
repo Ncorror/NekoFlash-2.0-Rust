@@ -52,4 +52,6 @@ mod tests {
         ));
     }
 }
+pub mod connection;
 pub mod packet_io;
+pub mod services;

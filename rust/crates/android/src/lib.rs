@@ -12,3 +12,60 @@ pub unsafe extern "C" fn nekoflash_adb_checksum(data: *const u8, length: usize) 
     // SAFETY: the caller satisfies the function contract.
     adb::checksum(unsafe { std::slice::from_raw_parts(data, length) })
 }
+
+#[cfg(unix)]
+#[repr(C)]
+pub struct SparseInfo {
+    block_size: u32,
+    blocks: u32,
+    chunks: u32,
+}
+
+/// # Safety
+/// fd belongs to a live, exclusively positioned file for this call; result
+/// points to writable storage. The callback may use context only synchronously.
+/// Returns 0 on success, 1 on invalid input, 2 on I/O error, 3 on cancellation.
+#[cfg(unix)]
+#[no_mangle]
+pub unsafe extern "C" fn nekoflash_sparse_info(
+    fd: i32,
+    context: *mut std::ffi::c_void,
+    cancelled: extern "C" fn(*mut std::ffi::c_void) -> bool,
+    result: *mut SparseInfo,
+) -> i32 {
+    use std::{fs::File, io, os::fd::BorrowedFd};
+    if fd < 0 || result.is_null() {
+        return 1;
+    }
+    // SAFETY: JNI retains the ParcelFileDescriptor on the stack. Rust closes only its duplicate.
+    let fd = unsafe { BorrowedFd::borrow_raw(fd) };
+    let Ok(owned) = fd.try_clone_to_owned() else {
+        return 2;
+    };
+    let mut file = File::from(owned);
+    let inspected = nekoflash_core::images::inspect(&mut file, || {
+        if cancelled(context) {
+            Err(io::ErrorKind::Interrupted.into())
+        } else {
+            Ok(())
+        }
+    });
+    match inspected {
+        Ok(info) => {
+            // SAFETY: the C caller supplied storage with the same repr(C) layout.
+            unsafe {
+                result.write(SparseInfo {
+                    block_size: info.block_size,
+                    blocks: info.blocks,
+                    chunks: info.chunks,
+                })
+            };
+            0
+        }
+        Err(e) => match e.kind() {
+            io::ErrorKind::InvalidData | io::ErrorKind::UnexpectedEof => 1,
+            io::ErrorKind::Interrupted => 3,
+            _ => 2,
+        },
+    }
+}

@@ -115,3 +115,9 @@ impl<T: Link> PacketIo<T> {
         Ok((header, data))
     }
 }
+
+impl<T> PacketIo<T> {
+    pub(crate) fn into_link(self) -> io::Result<T> {
+        self.link.ok_or_else(|| io::ErrorKind::NotConnected.into())
+    }
+}
