@@ -90,3 +90,7 @@ The following projects were implementation references and are **not vendored sou
 - **Android Open Source Project** — Apache License 2.0 and component-specific licenses — https://source.android.com/
 
 These references informed Android-to-Android USB workflows, ADB/Fastboot behavior and Xiaomi account/unlock sequencing; they do not imply affiliation or endorsement.
+
+## Rust Android core
+
+The locked Rust workspace uses nix, libc, bitflags, cfg-if and cfg_aliases. Their MIT notices are included in the APK at `assets/rust/THIRD-PARTY-LICENSES.txt`. The Fastboot TCP framing follows the [AOSP Fastboot v1 specification](https://android.googlesource.com/platform/system/core/+/refs/heads/main/fastboot/README.md). USB bulk request layout follows the Linux usbdevice_fs userspace interface.

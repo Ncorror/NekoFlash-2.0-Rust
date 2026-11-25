@@ -82,6 +82,9 @@ jobs:
         run: |
           bash scripts/ci-install-filesystem-deps.sh e2fsprogs f2fs-tools autoconf automake libtool pkg-config
 
+      - name: Install Rust Android targets
+        run: rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
+
       - name: Build pinned Android filesystem generators
         timeout-minutes: 20
         run: |
@@ -113,17 +116,10 @@ jobs:
             --console=plain 2>&1 | tee debug_build_log.txt
 
       - name: Verify APK filesystem executables and build instrumentation APK
+        id: apks
         run: |
           python3 tests/check_filesystem_apk.py app/build/outputs/apk/debug/app-debug.apk
           ./gradlew :app:assembleDebugAndroidTest --no-daemon --console=plain
-
-      - name: Upload instrumentation APK
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        with:
-          name: NekoFlash-${{ github.sha }}-android-test
-          path: app/build/outputs/apk/androidTest/debug/*.apk
-          if-no-files-found: error
-          retention-days: 14
 
       - name: Summarize test and lint reports
         run: |
@@ -154,6 +150,71 @@ jobs:
                       if issue.get('severity') in ('Warning', 'Error', 'Fatal')]
           assert not findings, f"Android Lint must be warning-free: {len(findings)} findings"
           PY
+
+      - name: Prepare emulator access
+        run: sudo chmod 666 /dev/kvm
+
+      - name: Installed app on Android API 26
+        if: ${{ !cancelled() && steps.apks.outcome == 'success' }}
+        timeout-minutes: 20
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
+        with:
+          api-level: 26
+          target: google_apis
+          arch: x86_64
+          avd-name: nekoflash-api26
+          disable-animations: true
+          script: bash scripts/ci-installed-app.sh 26
+
+      - name: Installed app on Android API 34
+        if: ${{ !cancelled() && steps.apks.outcome == 'success' }}
+        timeout-minutes: 20
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          avd-name: nekoflash-api34
+          disable-animations: true
+          script: bash scripts/ci-installed-app.sh 34
+
+      - name: Bundle Android filesystem evidence
+        if: ${{ !cancelled() && steps.apks.outcome == 'success' }}
+        run: |
+          set -eu
+          for api in 26 34; do
+            archive="android-filesystem-evidence-api${api}.tar.gz"
+            tar -C "build/android-evidence/api$api" -czf "$archive" .
+            sha256sum "$archive" > "${archive}.sha256"
+          done
+
+      - name: Upload Android API 26 evidence
+        if: ${{ !cancelled() && steps.apks.outcome == 'success' }}
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: NekoFlash-${{ github.sha }}-mkfs-api26
+          path: android-filesystem-evidence-api26.tar.gz*
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+      - name: Upload Android API 34 evidence
+        if: ${{ !cancelled() && steps.apks.outcome == 'success' }}
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: NekoFlash-${{ github.sha }}-mkfs-api34
+          path: android-filesystem-evidence-api34.tar.gz*
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+      - name: Upload instrumentation APK
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: NekoFlash-${{ github.sha }}-android-test
+          path: app/build/outputs/apk/androidTest/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Upload inspectable lint and JVM reports
         if: always()
@@ -484,95 +545,12 @@ jobs:
           if-no-files-found: ignore
           retention-days: 30
 
-  android-filesystems:
-    name: Installed mkfs on Android API ${{ matrix.api }}
-    needs: build
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        api: [26, 34]
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
-        with:
-          name: NekoFlash-${{ github.sha }}-debug
-          path: emulator-apk
-      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
-        with:
-          name: NekoFlash-${{ github.sha }}-android-test
-          path: emulator-test-apk
-      - name: Prepare emulator access and independent fsck tools
-        run: |
-          sudo chmod 666 /dev/kvm
-          bash scripts/ci-install-filesystem-deps.sh e2fsprogs f2fs-tools
-      - name: Run installed-app filesystem and interface tests without root
-        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
-        with:
-          api-level: ${{ matrix.api }}
-          target: google_apis
-          arch: x86_64
-          disable-animations: true
-          script: |
-            adb install emulator-apk/NekoFlash-*-debug.apk
-            adb install emulator-test-apk/app-debug-androidTest.apk
-            adb logcat -c || true
-            adb shell am instrument -w -r ru.forum.adbfastboottool.rust.dev.test/ru.forum.adbfastboottool.NekoFlashAndroidTestRunner | tee android-mkfs-tests.txt
-            adb logcat -d > android-instrumentation-logcat.txt 2>&1 || true
-            mkdir -p android-source-ui
-            adb exec-out run-as ru.forum.adbfastboottool.rust.dev cat files/source-test-output/quick-restored.png > android-source-ui/quick-restored.png
-            adb exec-out run-as ru.forum.adbfastboottool.rust.dev cat files/source-test-output/quick-unavailable.png > android-source-ui/quick-unavailable.png
-            adb exec-out run-as ru.forum.adbfastboottool.rust.dev cat files/source-test-output/quick-partition-menu.png > android-source-ui/quick-partition-menu.png
-            adb exec-out run-as ru.forum.adbfastboottool.rust.dev cat files/source-test-output/mass-saf-queue.png > android-source-ui/mass-saf-queue.png
-            python3 -c "from pathlib import Path; p=Path('android-source-ui'); assert all((p/n).stat().st_size > 0 for n in ('quick-restored.png', 'quick-unavailable.png', 'quick-partition-menu.png', 'mass-saf-queue.png'))"
-            python3 tests/collect_android_ui.py --output android-interface-ui
-            python3 -c "from pathlib import Path; s=Path('android-mkfs-tests.txt').read_text(); assert 'OK (31 tests)' in s and 'FAILURES' not in s, s"
-            python3 tests/verify_android_filesystems.py --output android-mkfs-images
-      # The filesystem regression creates thousands of 16 KiB parts.
-      # Uploading them individually can hit artifact-service timeouts.
-      # Keep the complete evidence, including partially produced failure logs,
-      # in one lossless archive with a separate SHA-256 checksum.
-      - name: Bundle Android filesystem evidence
-        if: always()
-        shell: bash
-        run: |
-          set -euo pipefail
-          paths=()
-          for path in android-mkfs-tests.txt android-instrumentation-logcat.txt android-mkfs-images android-source-ui android-interface-ui; do
-            if [[ -e "$path" ]]; then paths+=("$path"); fi
-          done
-          if (( ${#paths[@]} == 0 )); then
-            echo "::error::No Android filesystem evidence produced"
-            exit 1
-          fi
-          archive="android-filesystem-evidence-api${{ matrix.api }}.tar.gz"
-          tar -cf - "${paths[@]}" | gzip -1 > "$archive"
-          sha256sum "$archive" > "${archive}.sha256"
-          ls -lh "$archive" "${archive}.sha256"
-      - name: Upload Android filesystem evidence
-        if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        with:
-          name: NekoFlash-${{ github.sha }}-mkfs-api${{ matrix.api }}
-          path: |
-            android-filesystem-evidence-api${{ matrix.api }}.tar.gz
-            android-filesystem-evidence-api${{ matrix.api }}.tar.gz.sha256
-          if-no-files-found: error
-          compression-level: 0
-          retention-days: 30
-
-
   tester-kit:
     name: Package verified tester APK
     outputs:
       artifact_id: ${{ steps.upload.outputs.artifact-id }}
       artifact_digest: ${{ steps.upload.outputs.artifact-digest }}
-    needs: [build, android-filesystems]
+    needs: build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5

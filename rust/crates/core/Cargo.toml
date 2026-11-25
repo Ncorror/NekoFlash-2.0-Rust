@@ -8,3 +8,5 @@ publish.workspace = true
 [dependencies]
 nekoflash-adb = { path = "../adb" }
 nekoflash-fastboot = { path = "../fastboot" }
+nekoflash-transport = { path = "../transport" }
+nekoflash-images = { path = "../images" }

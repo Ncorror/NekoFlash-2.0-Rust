@@ -18,3 +18,6 @@
 -keepnames class ru.forum.adbfastboottool.**
 -renamesourcefileattribute SourceFile
 -keepattributes SourceFile,LineNumberTable
+
+# Symbol-based JNI entry points in libnekoflash_core.so.
+-keep class ru.forum.adbfastboottool.RustCore { native <methods>; }

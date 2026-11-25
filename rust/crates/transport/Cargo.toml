@@ -1,0 +1,11 @@
+[package]
+name = "nekoflash-transport"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+
+[target.'cfg(any(target_os = "linux", target_os = "android"))'.dependencies]
+nix = { version = "0.30", default-features = false, features = ["ioctl"] }

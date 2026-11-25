@@ -44,5 +44,5 @@ assert all(node.get(app+'iconGravity') == 'textTop' for node in tabs)
 assert 'iconTint' in (java / 'TabController.kt').read_text()
 for workflow in ('build.yml', 'release.yml'):
     assert 'tests/check_rev27.py' in (root / '.github/workflows' / workflow).read_text()
-assert 'tests/collect_android_ui.py' in (root / '.github/workflows/build.yml').read_text()
+assert 'tests/collect_android_ui.py' in (root / 'scripts/ci-installed-app.sh').read_text()
 print('PASS REV25: recycled ordered queue, persistent prominent slot selection, explicit form restoration, five icon tabs')

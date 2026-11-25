@@ -39,6 +39,9 @@ for name in ('build.yml', 'release.yml'):
     assert 'tests/check_rev27.py' in (root / '.github/workflows' / name).read_text()
 # Later revisions may add tests; never regress below REV24's 18-test floor.
 workflow = (root / '.github/workflows/build.yml').read_text()
-required = re.search(r"OK \((\d+) tests\)", workflow)
+for api in (26, 34):
+    assert f'script: bash scripts/ci-installed-app.sh {api}' in workflow
+runner = (root / 'scripts/ci-installed-app.sh').read_text()
+required = re.search(r"OK \((\d+) tests\)", runner)
 assert required is not None and int(required.group(1)) >= 18
 print('PASS REV24: durable checked Quick source, mixed File/SAF queue, stale-result guards, no automatic replay')

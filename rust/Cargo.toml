@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/adb", "crates/fastboot", "crates/core"]
+members = ["crates/adb", "crates/fastboot", "crates/core", "crates/transport", "crates/images", "crates/android"]
 resolver = "2"
 
 [workspace.package]
