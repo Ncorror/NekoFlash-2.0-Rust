@@ -55,7 +55,7 @@ for key in plural_en:
 gradle = (ROOT/"app/build.gradle").read_text()
 main = (ROOT/"app/src/main/java/ru/forum/adbfastboottool/MainActivity.kt").read_text()
 assert 'namespace = \'ru.forum.adbfastboottool\'' in gradle
-assert 'applicationId = "ru.forum.adbfastboottool"' in gradle
+assert 'applicationId = "ru.forum.adbfastboottool.rust"' in gradle
 assert 'private val folderName = "NekoFlash"' in main
 assert 'Environment.DIRECTORY_DOWNLOADS' in main
 assert 'workspacePath = File(downloadsDir, folderName)' in main

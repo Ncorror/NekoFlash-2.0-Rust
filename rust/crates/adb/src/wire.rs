@@ -31,7 +31,7 @@ impl Header {
 
     pub fn encode(self) -> [u8; HEADER_SIZE] {
         let mut result = [0; HEADER_SIZE];
-        for (chunk, value) in result.chunks_exact_mut(4).zip([self.command, self.arg0, self.arg1, self.data_length, self.data_check, !self.command]) {
+        for (chunk, value) in result.as_chunks_mut::<4>().0.iter_mut().zip([self.command, self.arg0, self.arg1, self.data_length, self.data_check, !self.command]) {
             chunk.copy_from_slice(&value.to_le_bytes());
         }
         result
@@ -40,8 +40,8 @@ impl Header {
     pub fn decode(input: &[u8], max_payload: u32) -> Result<Self, WireError> {
         let bytes: &[u8; HEADER_SIZE] = input.try_into().map_err(|_| WireError::HeaderLength)?;
         let mut words = [0u32; 6];
-        for (word, chunk) in words.iter_mut().zip(bytes.chunks_exact(4)) {
-            *word = u32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
+        for (word, chunk) in words.iter_mut().zip(bytes.as_chunks::<4>().0.iter()) {
+            *word = u32::from_le_bytes(*chunk);
         }
         let [command, arg0, arg1, data_length, data_check, magic] = words;
         if magic != !command { return Err(WireError::InvalidMagic); }

@@ -48,7 +48,7 @@ assert 'fun pruneDirectory(' in store
 
 # Debug identity is stable and paths remain frozen.
 gradle = (root/'app/build.gradle').read_text()
-assert 'applicationId = "ru.forum.adbfastboottool"' in gradle
+assert 'applicationId = "ru.forum.adbfastboottool.rust"' in gradle
 assert 'applicationIdSuffix = ".dev"' in gradle
 assert 'versionNameSuffix = "-dev"' in gradle
 assert 'private val folderName = "NekoFlash"' in main

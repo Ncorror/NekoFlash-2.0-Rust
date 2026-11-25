@@ -53,3 +53,9 @@ The publisher stages a fresh clone in a temporary directory, preserves it on fai
 ## Preparation verification
 
 Local package verification passed: Bash syntax, Python syntax, TOML parsing, workspace/lock membership, CI YAML parsing, test declaration count, variant transformation and mocked GitHub publication with a local bare repository, repeated invocation, remote divergence rejection and unchanged upstream. The local publication simulation uses a small synthetic upstream fixture and a mocked `gh`; it is not a real GitHub publication or Android build. No Rust compiler was installed, and rustup download was unavailable (DNS failure). No Rust tests, Clippy, Android build or hardware tests are claimed to have passed. The original app continues using its Kotlin/C++ implementation until JNI migration. Review original external storage paths, Android permissions, app-ID-specific tests, and Rust-vs-Kotlin parsing corner cases before parallel hardware testing.
+
+## 2026-11-25 — initial publication and CI corrections
+
+- Published main `7741dc03da6d745749cae2bcae4d56cfe20181ac` to the private Rust repository. Termux compiled the workspace and passed 23/23 tests (8 ADB, 9 Fastboot, 5 inventory, 1 facade).
+- First GitHub CI failed: Android revision-14 and i18n guards expected the original application ID; Rust Clippy rejected two constant-sized chunk iterators. Updated the guards to require the independent `.rust` ID, and changed the ADB header codec to fixed-size array chunk iteration without relaxing validation or lint rules.
+- CI rerun, Android APK, external workspace separation, JNI integration and hardware parity remain unverified.
