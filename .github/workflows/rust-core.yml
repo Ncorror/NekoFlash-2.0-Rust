@@ -1,0 +1,20 @@
+name: Rust core
+on:
+  push:
+    paths: ['rust/**', '.github/workflows/rust-core.yml', 'scripts/configure_rust_variant.py']
+  pull_request:
+    paths: ['rust/**', '.github/workflows/rust-core.yml', 'scripts/configure_rust_variant.py']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - run: rustup toolchain install stable --profile minimal --component rustfmt --component clippy
+      - run: cargo +stable clippy --locked --workspace --all-targets -- -D warnings
+      - run: cargo +stable test --workspace --locked

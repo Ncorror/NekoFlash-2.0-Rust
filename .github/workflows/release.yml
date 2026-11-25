@@ -19,6 +19,7 @@ env:
 
 jobs:
   tag-provenance:
+    if: ${{ github.repository == 'Ncorror/NekoFlash-2.0' }}
     name: Verify/create approved release tag
     runs-on: ubuntu-latest
     permissions:

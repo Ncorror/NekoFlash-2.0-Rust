@@ -25,6 +25,7 @@ env:
 
 jobs:
   build:
+    if: ${{ github.repository == 'Ncorror/NekoFlash-2.0' || github.event_name != 'workflow_dispatch' || !inputs.sign_release }}
     runs-on: ubuntu-latest
     # Ordinary CI uses only public artifacts; manual signing needs approved release environment.
     environment: ${{ github.event_name == 'workflow_dispatch' && inputs.sign_release && github.ref == 'refs/heads/main' && 'nekoflash-release' || 'nekoflash-ci' }}
