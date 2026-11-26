@@ -154,6 +154,7 @@ impl<T: Link> Connection<T> {
             pending: Vec::new(),
             offset: 0,
             closed: false,
+            close_stdin_ack: false,
             failed: false,
         })
     }
@@ -167,6 +168,7 @@ pub struct Service<'a, T: Link> {
     pending: Vec<u8>,
     offset: usize,
     closed: bool,
+    close_stdin_ack: bool,
     failed: bool,
 }
 
@@ -247,7 +249,7 @@ impl<T: Link> Read for Service<'_, T> {
             if self.closed {
                 return Ok(0);
             }
-            if self.event()? == OKAY {
+            if self.event()? == OKAY && !std::mem::take(&mut self.close_stdin_ack) {
                 self.failed = true;
                 return Err(bad("unexpected ADB write acknowledgement"));
             }
@@ -301,12 +303,25 @@ impl<T: Link> Service<'_, T> {
                     self.conn.healthy = true;
                     return Ok(());
                 }
+                OKAY if data.is_empty() && std::mem::take(&mut self.close_stdin_ack) => {}
                 WRTE => {} // In flight when the host closed. Never acknowledge new data.
                 _ => return Err(bad("invalid ADB close response")),
             }
         }
     }
-    pub(crate) fn has_buffered_close(&self) -> bool {
-        self.closed && !self.pending.is_empty()
+    /// Drain stdout while the peer processes CLOSE_STDIN. A daemon can send
+    /// several WRTE packets before acknowledging our input or closing the service.
+    pub(crate) fn finish_shell_input(&mut self) -> io::Result<()> {
+        const FRAME: [u8; 5] = [4, 0, 0, 0, 0];
+        let mut parts = FRAME.chunks(self.conn.max as usize).peekable();
+        while let Some(part) = parts.next() {
+            if parts.peek().is_none() {
+                self.send(WRTE, part)?;
+                self.close_stdin_ack = true;
+            } else {
+                self.write_packet(part)?;
+            }
+        }
+        Ok(())
     }
 }

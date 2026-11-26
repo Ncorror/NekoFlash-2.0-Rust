@@ -128,13 +128,16 @@ impl<T: Packets> Session<T> {
         mut info: impl FnMut(&str),
     ) -> Result<String, Error> {
         check_name(name, true)?;
+        if name.len() > 57 {
+            return Err(io::Error::from(io::ErrorKind::InvalidInput).into());
+        }
         let cmd = format!("getvar:{name}");
         self.transaction(|wire| {
             command(wire, &cmd, deadline)?;
             let mut last = None;
             let r = reply(wire, deadline, |s| {
                 info(s);
-                if let Some(v) = value(s) {
+                if let Some(v) = value(name, s) {
                     last = Some(v.to_owned());
                 }
             })?;
@@ -144,7 +147,7 @@ impl<T: Packets> Session<T> {
             Ok(if r.payload.is_empty() {
                 last.unwrap_or_default()
             } else {
-                value(&r.payload).unwrap_or("").to_owned()
+                value(name, &r.payload).unwrap_or("").to_owned()
             })
         })
     }
@@ -216,9 +219,15 @@ impl<T: Packets> Session<T> {
     }
 }
 
-fn value(raw: &str) -> Option<&str> {
+fn value<'a>(name: &str, raw: &'a str) -> Option<&'a str> {
     let s = raw.trim();
     let s = s.strip_prefix("INFO").unwrap_or(s).trim();
-    let v = s.split_once(':').map_or(s, |(_, v)| v).trim();
+    let direct = s.get(..name.len()).filter(|prefix| {
+        prefix.eq_ignore_ascii_case(name) || prefix.eq_ignore_ascii_case(&name.replace('-', "_"))
+    });
+    let tail = direct.and_then(|prefix| s[prefix.len()..].strip_prefix(':'));
+    let v = tail
+        .unwrap_or_else(|| s.split_once(':').map_or(s, |(_, v)| v))
+        .trim();
     (!v.is_empty()).then_some(v)
 }

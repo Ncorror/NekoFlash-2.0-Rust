@@ -40,6 +40,7 @@ pub struct DuplicateVariable {
 #[derive(Debug, PartialEq, Eq)]
 pub struct Snapshot {
     pub variables: BTreeMap<String, String>,
+    variable_order: Vec<String>,
     pub partitions: Vec<Partition>,
     pub complete: bool,
     pub final_status: String,
@@ -48,9 +49,15 @@ pub struct Snapshot {
     pub duplicate_variables: Vec<DuplicateVariable>,
 }
 impl Snapshot {
+    /// Match Kotlin LinkedHashMap iteration while retaining fast lookups.
+    pub fn variables_in_order(&self) -> impl Iterator<Item = (&str, &str)> {
+        self.variable_order
+            .iter()
+            .filter_map(|key| self.variables.get(key).map(|v| (key.as_str(), v.as_str())))
+    }
     pub fn value(&self, name: &str) -> Option<&str> {
         self.variables
-            .get(&name.trim().to_ascii_lowercase())
+            .get(&name.trim().to_lowercase())
             .map(String::as_str)
     }
     pub fn partition(&self, name: &str) -> Option<&Partition> {
@@ -63,7 +70,7 @@ impl Snapshot {
 fn normalize(raw: &str) -> String {
     let mut value = raw.trim().replace('\0', "");
     loop {
-        let lower = value.to_ascii_lowercase();
+        let lower = value.to_lowercase();
         let len = if lower.starts_with("info") || lower.starts_with("text") {
             4
         } else if lower.starts_with("(bootloader)") {
@@ -78,7 +85,7 @@ fn normalize(raw: &str) -> String {
 
 fn split_variable(line: &str) -> Option<(String, String)> {
     let (first, tail) = line.split_once(':')?;
-    let family = first.to_ascii_lowercase();
+    let family = first.to_lowercase();
     if matches!(
         family.as_str(),
         "partition-size"
@@ -92,7 +99,7 @@ fn split_variable(line: &str) -> Option<(String, String)> {
         if let Some((target, value)) = tail.split_once(':') {
             // Match upstream scoped regex only when the raw target is nonempty.
             if !target.is_empty() {
-                let target = target.trim().to_ascii_lowercase();
+                let target = target.trim().to_lowercase();
                 let value = value.trim();
                 return if target.is_empty() || value.is_empty() {
                     None
@@ -102,7 +109,7 @@ fn split_variable(line: &str) -> Option<(String, String)> {
             }
         }
     }
-    let name = first.trim().to_ascii_lowercase();
+    let name = first.trim().to_lowercase();
     let value = tail.trim();
     if name.is_empty() || value.is_empty() {
         None
@@ -112,7 +119,7 @@ fn split_variable(line: &str) -> Option<(String, String)> {
 }
 
 pub fn parse_size(raw: Option<&str>) -> Option<u64> {
-    let clean = raw?.trim().to_ascii_lowercase();
+    let clean = raw?.trim().to_lowercase();
     let value = if let Some(hex) = clean.strip_prefix("0x") {
         i64::from_str_radix(hex, 16).ok()?
     } else {
@@ -131,7 +138,7 @@ pub fn parse<'a>(
     let mut all_values: BTreeMap<String, Vec<String>> = BTreeMap::new();
     let mut order = Vec::new();
     let mut ignored_lines = Vec::new();
-    for line in lines.into_iter().flat_map(str::lines) {
+    for line in lines.into_iter().flat_map(|line| line.split(['\r', '\n'])) {
         let clean = normalize(line);
         if clean.trim().is_empty() {
             continue;
@@ -164,7 +171,7 @@ pub fn parse<'a>(
             "has-slot" => MetadataField::HasSlot,
             _ => continue,
         };
-        let target = target.trim().to_ascii_lowercase();
+        let target = target.trim().to_lowercase();
         if target.is_empty() {
             continue;
         }
@@ -183,26 +190,23 @@ pub fn parse<'a>(
         }
     }
     let duplicate_variables = order
-        .into_iter()
+        .iter()
         .filter_map(|name| {
-            let values = all_values.remove(&name)?;
+            let values = all_values.remove(name)?;
             if values.len() < 2 {
                 return None;
             }
-            let conflicting = values
-                .iter()
-                .map(|v| v.trim().to_ascii_lowercase())
-                .collect::<BTreeSet<_>>()
-                .len()
-                > 1;
+            let first = values[0].trim().to_lowercase();
+            let conflicting = values[1..].iter().any(|v| v.trim().to_lowercase() != first);
             Some(DuplicateVariable {
-                name,
+                name: name.clone(),
                 values,
                 conflicting,
             })
         })
         .collect();
     Snapshot {
+        variable_order: order,
         variables,
         partitions: by_partition.into_values().collect(),
         complete,

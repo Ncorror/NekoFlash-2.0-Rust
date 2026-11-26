@@ -1,7 +1,13 @@
 package ru.forum.adbfastboottool
 
 import androidx.test.platform.app.InstrumentationRegistry
+import java.io.DataInputStream
+import java.io.DataOutputStream
 import java.io.File
+import java.net.ServerSocket
+import java.net.InetAddress
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.CancellationException
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -45,6 +51,36 @@ class RustCoreAndroidTest {
             assertTrue(runCatching { AndroidSparseImage.inspect(image) }.exceptionOrNull() is IllegalArgumentException)
         } finally {
             image.delete()
+        }
+    }
+
+    @Test fun nativeFastbootTcpQueriesAFragmentedPeer() {
+        val executor = Executors.newSingleThreadExecutor()
+        try {
+            ServerSocket(0, 1, InetAddress.getByName("127.0.0.1")).use { server ->
+                server.soTimeout = 5000
+                val peer = executor.submit {
+                    server.accept().use { socket ->
+                        socket.soTimeout = 5000
+                        val input = DataInputStream(socket.getInputStream())
+                        val out = DataOutputStream(socket.getOutputStream())
+                        fun read(n: Int) = ByteArray(n).also(input::readFully).toString(Charsets.US_ASCII)
+                        assertEquals("FB01", read(4))
+                        out.writeBytes("FB01")
+                        val expected = "getvar:partition-size:boot_a"
+                        assertEquals(expected.length.toLong(), input.readLong())
+                        assertEquals(expected, read(expected.length))
+                        for (reply in listOf("INFOpartition-size:boot_a: 0x4000", "OKAY")) {
+                            out.writeLong(reply.length.toLong())
+                            for (byte in reply.toByteArray(Charsets.US_ASCII)) out.writeByte(byte.toInt())
+                        }
+                    }
+                }
+                assertEquals("0x4000", RustCore.getvar("partition-size:boot_a", "127.0.0.1:${server.localPort}"))
+                peer.get(5, TimeUnit.SECONDS)
+            }
+        } finally {
+            executor.shutdownNow()
         }
     }
 }

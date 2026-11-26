@@ -95,3 +95,22 @@ fn flash_requires_matching_data_and_two_final_confirmations() {
         }
     }
 }
+
+#[test]
+fn stale_cancel_handle_does_not_hold_a_failed_connection_open() {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let addr = listener.local_addr().unwrap();
+    let watcher = thread::spawn(move || {
+        let (mut sock, _) = listener.accept().unwrap();
+        sock.set_read_timeout(Some(Duration::from_secs(2))).unwrap();
+        let mut handshake = [0; 4];
+        sock.read_exact(&mut handshake).unwrap();
+        sock.write_all(b"FB00").unwrap();
+        assert_eq!(sock.read(&mut handshake).unwrap(), 0);
+    });
+    let tcp = Tcp::connect(addr, deadline()).unwrap();
+    let cancel = tcp.cancellation_handle().unwrap();
+    assert!(TcpPackets::handshake(tcp, deadline()).is_err());
+    watcher.join().unwrap();
+    cancel.cancel().unwrap();
+}

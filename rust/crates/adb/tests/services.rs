@@ -209,3 +209,24 @@ fn adb_usb_exact_multiple_ends_in_one_zlp() {
     link.write_transfer(&[0; 24], deadline()).unwrap();
     assert_eq!(*sizes.borrow(), [16384, 16384, 0, 24]);
 }
+
+#[test]
+fn drains_independent_stdout_packets_before_close_stdin_ack() {
+    let link = Replay::new(vec![
+        banner(),
+        okay(),
+        write(b"\x01\x01\0\0\0a"),
+        write(b"\x01\x01\0\0\0b"),
+        write(b"\x03\x01\0\0\0\0"),
+        okay(),
+        close(),
+    ]);
+    let mut c = Connection::usb(link, &mut Identity, deadline()).unwrap();
+    let mut out = Vec::new();
+    assert_eq!(
+        c.shell_v2("cmd", deadline(), &mut out, &mut Vec::new())
+            .unwrap(),
+        0
+    );
+    assert_eq!(out, b"ab");
+}

@@ -227,11 +227,7 @@ impl<T: Link> crate::connection::Connection<T> {
         stderr: &mut impl Write,
     ) -> io::Result<u8> {
         let mut service = self.open(&format!("shell,v2,raw:{command}"), deadline)?;
-        if let Err(e) = close_stdin(&mut service) {
-            if !service.has_buffered_close() {
-                return Err(e);
-            }
-        }
+        service.finish_shell_input()?;
         let exit = shell_output(&mut service, stdout, stderr)?;
         service.finish()?;
         Ok(exit)

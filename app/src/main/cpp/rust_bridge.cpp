@@ -76,3 +76,28 @@ Java_ru_forum_adbfastboottool_RustCore_tokenize(JNIEnv* env, jobject, jstring te
         if (type) env->ThrowNew(type, "Unclosed quote or trailing escape in Fastboot command");
     }
 }
+
+struct VariableReply { uint32_t length; uint8_t bytes[4096]; };
+extern "C" int32_t nekoflash_getvar(int32_t, int32_t, int32_t, const char*, const char*, VariableReply*);
+
+extern "C" JNIEXPORT jbyteArray JNICALL
+Java_ru_forum_adbfastboottool_RustCore_queryVariable(JNIEnv* env, jobject, jint fd, jint ep_in,
+                                                     jint ep_out, jstring peer, jstring name) {
+    const auto* var = env->GetStringUTFChars(name, nullptr);
+    if (!var) return nullptr;
+    const char* address = peer ? env->GetStringUTFChars(peer, nullptr) : nullptr;
+    if (peer && !address) {
+        env->ReleaseStringUTFChars(name, var);
+        return nullptr;
+    }
+    VariableReply reply{};
+    const auto status = static_cast<jbyte>(nekoflash_getvar(fd, ep_in, ep_out, address, var, &reply));
+    if (peer) env->ReleaseStringUTFChars(peer, address);
+    env->ReleaseStringUTFChars(name, var);
+    const auto length = static_cast<jsize>(reply.length);
+    auto packet = env->NewByteArray(length + 1);
+    if (!packet) return nullptr;
+    env->SetByteArrayRegion(packet, 0, 1, &status);
+    env->SetByteArrayRegion(packet, 1, length, reinterpret_cast<const jbyte*>(reply.bytes));
+    return packet;
+}

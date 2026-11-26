@@ -150,3 +150,4 @@ mod tests {
 }
 pub mod command_line;
 pub mod session;
+pub mod slots;

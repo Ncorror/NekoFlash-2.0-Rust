@@ -1333,6 +1333,17 @@ class MainActivity : AppCompatActivity() {
 
     private fun handleFastbootTerminalCommand(cmd: String) {
         viewModel.log("> fastboot $cmd")
+        val args = cmd.trim().split(Regex("\\s+"))
+        if (args.first() == "--rust") {
+            val peer = args.getOrNull(2)?.removePrefix("tcp:")
+            when {
+                args.size == 3 && args[1] == "getvar" -> viewModel.runRustGetVar(args[2], null)
+                args.size == 5 && args[1] == "-s" && args[2].startsWith("tcp:") && args[3] == "getvar" ->
+                    viewModel.runRustGetVar(args[4], peer)
+                else -> viewModel.log("Usage: fastboot --rust [-s tcp:IP:PORT] getvar NAME")
+            }
+            return
+        }
         val request = parseFastbootCommand(cmd) ?: return
         val expectedSerial = request.serial
         when (val action = request.action) {

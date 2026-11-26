@@ -70,8 +70,8 @@ merged_workflows_terminal_vm_blob = 'ce79e1734ceac7e1dd6a00a1b0a7e4acdfe81658'
 localized_transport_error_vm_blob = '0425e625bbb42988a046c274aca2d28ab54b2f19'
 reviewed_kotlin_warning_cleanup_vm_blob = '928a7fc2118ac8962fbd7d8700cc56d61c4b41ff'
 # Post-PR119 reviewed script safety changes; keep all previous integrity checks.
-# Fork changes only the workspace root and the displayed log path.
-reviewed_script_stabilization_vm_blob = '1797cbb11e52518b300317f26f8e1298d640dc9c'
+# Fork workspace and opt-in read-only native getvar entry point.
+reviewed_script_stabilization_vm_blob = 'dcf778a9983bd36575baf4aaef65eaea8b424a74'
 workflow_followups_vm_blobs = (workflow_followups_vm_blob, merged_workflows_terminal_vm_blob, localized_transport_error_vm_blob, reviewed_kotlin_warning_cleanup_vm_blob, reviewed_script_stabilization_vm_blob)
 mass_flash_slots_vm_blobs = (mass_flash_slots_vm_blob, integrated_workflows_vm_blob)
 terminal_exit_vm_blobs = (reviewed_terminal_exit_vm_blob, integrated_workflows_vm_blob, workflow_followups_vm_blob)
@@ -110,6 +110,8 @@ if vm_blob in (rev51_lossless_vm_blob, rev52_admission_vm_blob, rev52_explicit_t
         assert 'requiredTransport = UsbOperationAdmission.RequiredTransport.FASTBOOT' in vm
         if vm_blob in (rev52_explicit_transport_vm_blob, rev55_recovery_transition_vm_blob, rev56_android_release_vm_blob, rev57_sideload_verdict_vm_blob, mi_unlock_diagnostics_vm_blob, mi_unlock_terminal_vm_blob, *shell_redirect_vm_blobs):
             expected_fastboot_calls = 13 if vm_blob in terminal_shell_v2_vm_blobs else 12
+            if vm_blob == reviewed_script_stabilization_vm_blob:
+                expected_fastboot_calls += 1  # Rust getvar uses the same service admission gate.
             assert vm.count('requiredTransport = UsbOperationAdmission.RequiredTransport.FASTBOOT') == expected_fastboot_calls
             assert vm.count('requiredTransport = UsbOperationAdmission.RequiredTransport.ADB') == adb_operation_count
             assert vm.count('startOperation(') == expected_fastboot_calls + adb_operation_count + 1

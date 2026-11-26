@@ -485,6 +485,19 @@ class FastbootProtocol(
         return false
     }
 
+    internal fun rustGetVar(name: String): String = transactionLock.withLock {
+        check(ensureSessionReady("getvar:$name")) { "Fastboot session is unavailable" }
+        val conn = checkNotNull(connection)
+        val input = checkNotNull(endpointIn)
+        val output = checkNotNull(endpointOut)
+        try {
+            RustCore.getvar(name, fd = conn.fileDescriptor, epIn = input.address, epOut = output.address)
+        } catch (e: java.io.IOException) {
+            markSessionBroken("Rust getvar response was not confirmed: ${e.message}")
+            throw e
+        }
+    }
+
     fun getVar(name: String, timeout: Int = 5000): String? = transactionLock.withLock {
         if (!ensureSessionReady("getvar:$name")) return@withLock null
         if (!writeCommand("getvar:$name", timeout)) return@withLock null

@@ -2013,6 +2013,29 @@ class DeviceViewModel(application: Application) : AndroidViewModel(application) 
         if (operation.cancellation.cancel()) operation.job.cancel()
     }
 
+    private var rustNetworkQuery: Job? = null
+
+    /** Explicit read-only Rust diagnostic; a TCP probe owns its one-shot socket. */
+    internal fun runRustGetVar(name: String, peer: String?) {
+        if (peer == null) {
+            startOperation(text(R.string.notif_fastboot_command), "getvar:$name", heavy = false,
+                requiredTransport = UsbOperationAdmission.RequiredTransport.FASTBOOT) {
+                val proto = fastbootProtocol ?: failOperation(text(R.string.error_no_fastboot))
+                log("getvar:$name = ${proto.rustGetVar(name)}")
+            }
+            return
+        }
+        if (rustNetworkQuery?.isCompleted == false) {
+            log("A Rust Fastboot TCP query is already running.")
+            return
+        }
+        rustNetworkQuery = transportScope.launch {
+            val result = runCatching { RustCore.getvar(name, peer = peer) }
+            coroutineContext.ensureActive()
+            result.fold({ log("getvar:$name = $it") }, { log("Fastboot TCP: ${it.message}") })
+        }
+    }
+
     fun runFastbootCommand(cmd: String, heavy: Boolean = true, expectedSerial: String? = null) {
         startOperation(
             text(R.string.notif_fastboot_command),

@@ -80,3 +80,19 @@ fn sizes_match_signed_upstream_bounds() {
     );
     assert_eq!(parse_size(Some("not a number")), None);
 }
+
+#[test]
+fn preserves_first_seen_order_and_unicode_variable_names() {
+    let s = parse(
+        ["z:last\rÉTAT:État\r\na:first\nétat:ÉTAT"],
+        true,
+        "OKAY",
+        None,
+    );
+    assert_eq!(
+        s.variables_in_order().collect::<Vec<_>>(),
+        [("z", "last"), ("état", "ÉTAT"), ("a", "first")]
+    );
+    assert!(!s.duplicate_variables[0].conflicting);
+    assert_eq!(s.value("ÉTAT"), Some("ÉTAT"));
+}
