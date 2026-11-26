@@ -8,6 +8,8 @@ internal object RustCore {
         false
     }
 
+    external fun tokenize(text: String, sink: java.util.function.BiConsumer<String, String>)
+
     external fun sparseInfo(fd: Int, checkCancelled: Runnable): LongArray
 
     external fun checksum(payload: ByteArray): Int

@@ -43,3 +43,36 @@ Java_ru_forum_adbfastboottool_RustCore_sparseInfo(JNIEnv* env, jobject, jint fd,
     if (result) env->SetLongArrayRegion(result, 0, 3, values);
     return result;
 }
+
+using EmitToken = bool (*)(void*, const uint16_t*, size_t, const uint16_t*, size_t);
+extern "C" bool nekoflash_tokenize(const uint16_t*, size_t, void*, EmitToken);
+
+extern "C" JNIEXPORT void JNICALL
+Java_ru_forum_adbfastboottool_RustCore_tokenize(JNIEnv* env, jobject, jstring text, jobject sink) {
+    const auto cls = env->GetObjectClass(sink);
+    if (!cls) return;
+    const auto accept = env->GetMethodID(cls, "accept", "(Ljava/lang/Object;Ljava/lang/Object;)V");
+    if (!accept) return;
+    struct Sink { JNIEnv* env; jobject obj; jmethodID accept; } callback{env, sink, accept};
+    const auto length = env->GetStringLength(text);
+    const auto* chars = env->GetStringChars(text, nullptr);
+    if (!chars) return;
+    const bool valid = nekoflash_tokenize(chars, length, &callback,
+        [](void* ptr, const uint16_t* value, size_t n, const uint16_t* literal, size_t size) {
+            auto* c = static_cast<Sink*>(ptr);
+            const auto a = c->env->NewString(value, static_cast<jsize>(n));
+            if (!a) return false;
+            const auto b = c->env->NewString(literal, static_cast<jsize>(size));
+            if (b) {
+                c->env->CallVoidMethod(c->obj, c->accept, a, b);
+                c->env->DeleteLocalRef(b);
+            }
+            c->env->DeleteLocalRef(a);
+            return c->env->ExceptionCheck() == JNI_FALSE;
+        });
+    env->ReleaseStringChars(text, chars);
+    if (!valid && !env->ExceptionCheck()) {
+        auto type = env->FindClass("java/lang/IllegalArgumentException");
+        if (type) env->ThrowNew(type, "Unclosed quote or trailing escape in Fastboot command");
+    }
+}

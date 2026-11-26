@@ -31,8 +31,9 @@ assert 'data class Wipe(val options: Set<String> = emptySet(), val force: Boolea
 assert 'postWipeCommands' in steps and 'delete-logical-partition:' in steps
 assert 'SuperEmptyImage.load(' in executor
 formatter = (java / 'FastbootFilesystemFormatter.kt').read_text()
-assert 'FastbootExt4.image(request)' in formatter
-assert 'FastbootF2fs.image(request)' in formatter
+assert 'FastbootExt4.plan(request)' in formatter
+assert 'FastbootF2fs.plan(request)' in formatter
+assert 'SparseWriter.writeTo(it, plan, checkCancelled)' in formatter
 assert 'AndroidSparseImage.fromRaw(' not in formatter
 assert 'output.fill(0, (aligned - offset) / blockSize)' in (java / 'AndroidSparseImage.kt').read_text()
 layout = ET.parse(root / 'app/src/main/res/layout/page_fastboot.xml').getroot()

@@ -69,3 +69,33 @@ pub unsafe extern "C" fn nekoflash_sparse_info(
         },
     }
 }
+
+/// # Safety
+/// text points to len UTF-16 code units. Each callback borrows the two token
+/// slices synchronously. It returns false if Java raised an exception.
+#[no_mangle]
+pub unsafe extern "C" fn nekoflash_tokenize(
+    text: *const u16,
+    len: usize,
+    context: *mut std::ffi::c_void,
+    emit: extern "C" fn(*mut std::ffi::c_void, *const u16, usize, *const u16, usize) -> bool,
+) -> bool {
+    let input = if len == 0 {
+        &[]
+    } else {
+        // SAFETY: supplied by GetStringChars until all callbacks return.
+        unsafe { std::slice::from_raw_parts(text, len) }
+    };
+    let Ok(tokens) = nekoflash_core::fastboot::command_line::tokenize(input) else {
+        return false;
+    };
+    tokens.iter().all(|t| {
+        emit(
+            context,
+            t.value.as_ptr(),
+            t.value.len(),
+            t.literal.as_ptr(),
+            t.literal.len(),
+        )
+    })
+}

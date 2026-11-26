@@ -30,7 +30,11 @@ public object FastbootF2fs {
     )
 
     /** Образ в формате sparse, как его пишет `make_f2fs`: обнулённое — заполнением, остальное — пропуском. */
-    public fun image(request: Request): Result<ByteArray> = runCatching {
+    public fun image(request: Request): Result<ByteArray> = plan(request).mapCatching {
+        SparseWriter.write(it.blockSize, it.totalBlocks, it.chunks)
+    }
+
+    internal fun plan(request: Request): Result<SparsePlan> = runCatching {
         var features = F2fs.ANDROID_FEATURES
         if (request.projectIds) features = features or F2fs.FEATURE_PRJQUOTA or F2fs.FEATURE_EXTRA_ATTR
         if (request.casefold) features = features or F2fs.FEATURE_CASEFOLD
@@ -63,7 +67,7 @@ public object FastbootF2fs {
             next = block + 1
         }
         flush()
-        SparseWriter.write(F2fs.BLOCK, layout.totalSectors * F2fsLayout.SECTOR / F2fs.BLOCK, chunks)
+        SparsePlan(F2fs.BLOCK, layout.totalSectors * F2fsLayout.SECTOR / F2fs.BLOCK, chunks)
     }
 
     /** `MAX_CHUNK_SIZE` у `f2fs_finalize_device`: кусок данных не длиннее 1 ГиБ. */

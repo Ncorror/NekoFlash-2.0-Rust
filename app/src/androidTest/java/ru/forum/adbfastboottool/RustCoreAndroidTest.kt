@@ -1,5 +1,8 @@
 package ru.forum.adbfastboottool
 
+import androidx.test.platform.app.InstrumentationRegistry
+import java.io.File
+import java.util.concurrent.CancellationException
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -12,6 +15,36 @@ class RustCoreAndroidTest {
             val expected = payload.sumOf { it.toInt() and 0xff }
             assertEquals(expected, RustCore.checksum(payload))
             assertEquals(expected, AdbPacketChecksum.compute(payload))
+        }
+    }
+
+    @Test fun installedTokenizerPreservesOemLiteralsAndEmptyArguments() {
+        val text = """oem "" 'путь с пробелом' a\ b"""
+        val tokens = mutableListOf<FastbootCommandLine.Token>()
+        RustCore.tokenize(text) { value, literal -> tokens.add(FastbootCommandLine.Token(value, literal)) }
+        assertEquals(listOf("oem", "", "путь с пробелом", "a b"), tokens.map { it.value })
+        assertEquals(listOf("oem", "\"\"", "'путь с пробелом'", "a\\ b"), tokens.map { it.literal })
+        assertEquals(tokens, FastbootCommandLine.tokenize(text))
+    }
+
+    @Test fun nativeSparseInspectionPreservesCancellationAndRejectsTrailingBytes() {
+        val directory = InstrumentationRegistry.getInstrumentation().targetContext.cacheDir
+        val image = File.createTempFile("rust-inspect-", ".sparse", directory)
+        try {
+            AndroidSparseImage.Writer(image, 4096, 1).use { writer ->
+                writer.fill(0, 1)
+                writer.finish()
+            }
+            val failure = runCatching {
+                AndroidSparseImage.inspect(image) { throw CancellationException("cancel sparse scan") }
+            }.exceptionOrNull()
+            assertTrue(failure is CancellationException)
+            assertEquals("cancel sparse scan", failure?.message)
+            assertEquals(AndroidSparseImage.inspectKotlin(image), AndroidSparseImage.inspect(image))
+            image.appendBytes(byteArrayOf(1))
+            assertTrue(runCatching { AndroidSparseImage.inspect(image) }.exceptionOrNull() is IllegalArgumentException)
+        } finally {
+            image.delete()
         }
     }
 }

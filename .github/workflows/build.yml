@@ -151,8 +151,12 @@ jobs:
           assert not findings, f"Android Lint must be warning-free: {len(findings)} findings"
           PY
 
-      - name: Prepare emulator access
-        run: sudo chmod 666 /dev/kvm
+      - name: Prepare emulator access and disk space
+        run: |
+          sudo chmod 666 /dev/kvm
+          # APKs, reports, generator binaries and corresponding source archives live outside these intermediates.
+          rm -rf app/.cxx app/build/intermediates build/filesystem-tools/work build/filesystem-tools/src
+          df -h "$RUNNER_TEMP"
 
       - name: Installed app on Android API 26
         if: ${{ !cancelled() && steps.apks.outcome == 'success' }}
@@ -162,9 +166,20 @@ jobs:
           api-level: 26
           target: google_apis
           arch: x86_64
+          disk-size: 2048M
           avd-name: nekoflash-api26
           disable-animations: true
           script: bash scripts/ci-installed-app.sh 26
+
+      - name: Release the API 26 emulator disk before installing API 34
+        if: ${{ !cancelled() && steps.apks.outcome == 'success' }}
+        run: |
+          avdmanager="$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager"
+          if "$avdmanager" list avd -c | grep -Fxq nekoflash-api26; then
+            "$avdmanager" delete avd -n nekoflash-api26
+          fi
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --uninstall 'system-images;android-26;google_apis;x86_64'
+          df -h "$RUNNER_TEMP"
 
       - name: Installed app on Android API 34
         if: ${{ !cancelled() && steps.apks.outcome == 'success' }}
@@ -174,6 +189,7 @@ jobs:
           api-level: 34
           target: google_apis
           arch: x86_64
+          disk-size: 2048M
           avd-name: nekoflash-api34
           disable-animations: true
           script: bash scripts/ci-installed-app.sh 34
