@@ -134,20 +134,29 @@ impl<T: Packets> Session<T> {
         let cmd = format!("getvar:{name}");
         self.transaction(|wire| {
             command(wire, &cmd, deadline)?;
-            let mut last = None;
+            let mut named_info = None;
+            let mut plain_info = None;
             let r = reply(wire, deadline, |s| {
                 info(s);
-                if let Some(v) = value(name, s) {
-                    last = Some(v.to_owned());
+                let line = s.strip_prefix("(bootloader)").unwrap_or(s).trim();
+                if let Some(v) = labelled_value(name, line) {
+                    if !v.is_empty() {
+                        named_info = Some(v.to_owned());
+                    }
+                } else if !line.is_empty() && !line.contains(':') && named_info.is_none() {
+                    plain_info = Some(line.to_owned());
                 }
             })?;
             if r.kind != "OKAY" {
                 return Err(invalid("unexpected DATA in getvar").into());
             }
+            // A direct OKAY may be a bare scalar containing colons, e.g. a MAC.
             Ok(if r.payload.is_empty() {
-                last.unwrap_or_default()
+                named_info.or(plain_info).unwrap_or_default()
             } else {
-                value(name, &r.payload).unwrap_or("").to_owned()
+                labelled_value(name, &r.payload)
+                    .unwrap_or(&r.payload)
+                    .to_owned()
             })
         })
     }
@@ -219,15 +228,14 @@ impl<T: Packets> Session<T> {
     }
 }
 
-fn value<'a>(name: &str, raw: &'a str) -> Option<&'a str> {
-    let s = raw.trim();
-    let s = s.strip_prefix("INFO").unwrap_or(s).trim();
-    let direct = s.get(..name.len()).filter(|prefix| {
-        prefix.eq_ignore_ascii_case(name) || prefix.eq_ignore_ascii_case(&name.replace('-', "_"))
-    });
-    let tail = direct.and_then(|prefix| s[prefix.len()..].strip_prefix(':'));
-    let v = tail
-        .unwrap_or_else(|| s.split_once(':').map_or(s, |(_, v)| v))
-        .trim();
-    (!v.is_empty()).then_some(v)
+fn labelled_value<'a>(name: &str, line: &'a str) -> Option<&'a str> {
+    let prefix = line.get(..name.len())?;
+    let matches = prefix
+        .bytes()
+        .zip(name.bytes())
+        .all(|(a, b)| a.eq_ignore_ascii_case(&b) || (a == b'_' && b == b'-'));
+    if !matches {
+        return None;
+    }
+    line[name.len()..].strip_prefix(':').map(str::trim)
 }

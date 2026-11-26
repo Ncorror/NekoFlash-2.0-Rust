@@ -70,7 +70,7 @@ class RustCoreAndroidTest {
                         val expected = "getvar:partition-size:boot_a"
                         assertEquals(expected.length.toLong(), input.readLong())
                         assertEquals(expected, read(expected.length))
-                        for (reply in listOf("INFOpartition-size:boot_a: 0x4000", "OKAY")) {
+                        for (reply in listOf("INFOpartition-size:boot_a: 0x4000", "INFOpartition-size:boot_b: 0x8000", "OKAY")) {
                             out.writeLong(reply.length.toLong())
                             for (byte in reply.toByteArray(Charsets.US_ASCII)) out.writeByte(byte.toInt())
                         }

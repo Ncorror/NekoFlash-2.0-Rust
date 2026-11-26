@@ -114,3 +114,30 @@ fn stale_cancel_handle_does_not_hold_a_failed_connection_open() {
     watcher.join().unwrap();
     cancel.cancel().unwrap();
 }
+
+#[test]
+fn scalar_getvar_preserves_colons_and_prefers_the_requested_info_key() {
+    let cases: &[(&str, &[&[u8]], &str)] = &[
+        ("serialno", &[b"OKAYaa:bb:cc:dd:ee:ff"], "aa:bb:cc:dd:ee:ff"),
+        ("mac-address", &[b"OKAYMAC_ADDRESS: aa:bb"], "aa:bb"),
+        (
+            "partition-size:boot_a",
+            &[
+                b"INFO(bootloader) partition-size:boot_a: 0x10",
+                b"INFOpartition-size:boot_b: 0x20",
+                b"TEXTfinished reading",
+                b"OKAY",
+            ],
+            "0x10",
+        ),
+        ("current-slot", &[b"INFOslot-count:2", b"OKAY"], ""),
+        ("product", &[b"INFOmodel-x", b"OKAY"], "model-x"),
+    ];
+    for &(name, packets, expected) in cases {
+        let mut session = Session::new(Recorded {
+            replies: packets.iter().copied().collect(),
+            writes: Rc::default(),
+        });
+        assert_eq!(session.getvar(name, deadline(), |_| {}).unwrap(), expected);
+    }
+}

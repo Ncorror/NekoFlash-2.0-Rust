@@ -119,3 +119,8 @@ The starter preserved the upstream history, license, notices and Android engines
 
 - Enabled section garbage collection for the Rust JNI shared library. The stripped library shrank from 1,363,640 to 558,464 bytes on arm64, 921,108 to 362,584 on armv7, 1,376,776 to 570,680 on x86 and 1,379,400 to 576,328 on x86_64. All four APK libraries retained their six JNI functions, 16 KiB ELF load alignment and system-library dependencies. Both debug APKs built, JVM tests and lint passed.
 - A local Linux x86_64/JDK 17 microbenchmark exercised the same Android ADB checksum entry point with the JNI library enabled and with the Kotlin fallback. With warmed 64 KiB arrays it measured 8.75 and 1.21 GiB/s respectively (median of seven 128 MiB runs). The resulting sums matched. Device transport throughput still requires hardware measurements.
+
+## 2026-11-26 — scoped Fastboot scalar replies
+
+- A direct OKAY preserves colons inside an unlabelled value, including a MAC-style identifier. For INFO followed by an empty OKAY, Rust gives priority to the exact requested variable, including its partition suffix. A later line for another partition cannot replace the answer. Unlabelled single-line replies and the existing underscore spelling remain supported.
+- A fragmented loopback peer now returns different sizes for boot_a and boot_b in the same response. The Android JNI query returned only the requested size. Local verification passed 45 locked Rust tests, strict Clippy, formatting, 567 JVM tests without skips, Android lint and both APK builds.
