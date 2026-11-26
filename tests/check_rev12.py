@@ -34,12 +34,14 @@ rev58_checkpointed_pull_adb_hash = 'cbca9c738c00950aeb899c3e3fd0150998e32c63'
 # stderr, packet transport, retries and reconnect behavior are not touched.
 rev59_shell_redirect_adb_hash = '8f1a6a97c3eee6d7c58839722079d0a190496fa1'
 adb_source_blob = raw_source_git_sha(data)
+rust_wireless_blob = '3dcf2a870861a50326bbac922e00b227a3fa982a'
 adb_workflows_source = adb_source_blob in {
+    rust_wireless_blob,  # Opt-in platform TLS connection through the Rust negotiation engine.
     'c1627733b4006670b72a00f6ce723fd1bf9c886d',  # Batch transfers, directory listing, and wireless transport.
     'bda5e1a9dfa5df9c1d76514e66c0a02211a8a847',  # Shared SEND source, bounded metadata read, and reboot disconnect.
     'a7ae097beca22487adbc3efca4ab4f89003ba954',  # Remove unused legacy shell output formatter; shell-v2 renderer remains active.
 }
-if adb_source_blob == 'a7ae097beca22487adbc3efca4ab4f89003ba954':
+if adb_source_blob in (rust_wireless_blob, 'a7ae097beca22487adbc3efca4ab4f89003ba954'):
     assert 'logShellOutput(' not in adb and 'toShellText' not in adb, 'Obsolete legacy shell formatter returned'
 if raw_source_git_sha(data) == rev59_shell_redirect_adb_hash:
     rev59_reviewed_hunks = [

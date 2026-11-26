@@ -25,6 +25,11 @@ internal object RustCore {
         }
     }
 
+    external fun wirelessHandshake(
+        read: java.util.function.Consumer<ByteArray>, write: java.util.function.Consumer<ByteArray>,
+        upgrade: Runnable, peer: IntArray
+    ): ByteArray
+
     external fun tokenize(text: String, sink: java.util.function.BiConsumer<String, String>)
 
     external fun sparseInfo(fd: Int, checkCancelled: Runnable): LongArray

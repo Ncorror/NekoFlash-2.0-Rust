@@ -102,3 +102,5 @@ pub unsafe extern "C" fn nekoflash_tokenize(
 
 #[cfg(any(target_os = "android", target_os = "linux"))]
 mod getvar;
+
+mod wireless;

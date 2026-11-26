@@ -57,6 +57,12 @@ impl<T: Link> Connection<T> {
             banner,
         })
     }
+    pub fn peer_version(&self) -> u32 {
+        self.peer_version
+    }
+    pub fn max_payload(&self) -> u32 {
+        self.max
+    }
     pub fn banner(&self) -> &[u8] {
         &self.banner
     }
@@ -109,6 +115,8 @@ impl<T: Link> Connection<T> {
         plain.write(STLS, VERSION_WITH_CHECKSUM, 0, &[], 4096, deadline)?;
         let mut wire = PacketIo::new(upgrade(plain.into_link()?, deadline)?);
         let (h, data) = wire.read(MAX_PAYLOAD, v, v, deadline)?;
+        h.validate_payload(&data, v, h.arg0)
+            .map_err(|_| bad("invalid ADB connection banner checksum"))?;
         Self::established(wire, v, h, data)
     }
 

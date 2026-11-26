@@ -736,7 +736,7 @@ class DeviceViewModel(application: Application) : AndroidViewModel(application) 
         AdbWirelessClient(wirelessAdbKeys).pair(host, port, code)
     }
 
-    internal fun connectWirelessAdb(host: String, port: Int) {
+    internal fun connectWirelessAdb(host: String, port: Int, useRustHandshake: Boolean = false) {
         if (transportRestartRequired.get()) {
             log(text(R.string.adb_wifi_restart_transport))
             _connectionState.postValue(ConnectionState.ERROR)
@@ -744,6 +744,14 @@ class DeviceViewModel(application: Application) : AndroidViewModel(application) 
         }
         synchronized(operationLaunchLock) {
             if (viewModelCleared.get()) return
+            if (useRustHandshake && (connectionJob?.isCompleted == false || hasUnfinishedUsbOperation())) {
+                log("Wireless ADB connection not started: finish the active transport operation first.")
+                return
+            }
+            if (useRustHandshake && !RustCore.available) {
+                log("Rust JNI library is unavailable")
+                return
+            }
             val generation = connectionGeneration.incrementAndGet()
             val endpoint = if (':' in host) "[$host]:$port" else "$host:$port"
             pendingUsbTargetKey = null
@@ -770,6 +778,7 @@ class DeviceViewModel(application: Application) : AndroidViewModel(application) 
                     connectAdbLocked(
                         AdbProtocol(
                             keyStore = wirelessAdbKeys,
+                            useRustHandshake = useRustHandshake,
                             host = host,
                             port = port,
                             rawShellLogsDir = File(workspaceRoot ?: getApplication<Application>().filesDir, "logs"),

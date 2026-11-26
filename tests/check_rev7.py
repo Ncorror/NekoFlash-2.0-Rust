@@ -71,7 +71,7 @@ localized_transport_error_vm_blob = '0425e625bbb42988a046c274aca2d28ab54b2f19'
 reviewed_kotlin_warning_cleanup_vm_blob = '928a7fc2118ac8962fbd7d8700cc56d61c4b41ff'
 # Post-PR119 reviewed script safety changes; keep all previous integrity checks.
 # Fork workspace and opt-in read-only native getvar entry point.
-reviewed_script_stabilization_vm_blob = 'dcf778a9983bd36575baf4aaef65eaea8b424a74'
+reviewed_script_stabilization_vm_blob = '06c97ede0169ef3465295f1316c54d557fb5b743'
 workflow_followups_vm_blobs = (workflow_followups_vm_blob, merged_workflows_terminal_vm_blob, localized_transport_error_vm_blob, reviewed_kotlin_warning_cleanup_vm_blob, reviewed_script_stabilization_vm_blob)
 mass_flash_slots_vm_blobs = (mass_flash_slots_vm_blob, integrated_workflows_vm_blob)
 terminal_exit_vm_blobs = (reviewed_terminal_exit_vm_blob, integrated_workflows_vm_blob, workflow_followups_vm_blob)

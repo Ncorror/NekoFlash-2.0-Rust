@@ -1,5 +1,7 @@
 # NekoFlash 2.0
 
+В этом репозитории разрабатывается Rust-версия. Кнопки загрузки ниже ведут к исходному Kotlin-релизу. [Архитектура, сборка и журнал переноса](docs/RUST_PORT.md)
+
 <p align="center"><a href="https://nekoflash.ncorror.chatgpt.site/ru/"><img src="docs/assets/nekoflash-2.0-banner.webp" width="960" alt="NekoFlash 2.0 — прошивка Android через USB OTG без компьютера"></a></p>
 
 <p align="center"><strong>ADB · Fastboot · Recovery · Sideload</strong><br>Управляй одним Android-телефоном с другого через USB OTG.</p>

@@ -1,5 +1,7 @@
 # NekoFlash 2.0
 
+This repository develops the Rust port. The download buttons below point to the original Kotlin release. [Rust architecture, builds and migration journal](docs/RUST_PORT.md)
+
 <p align="center"><a href="https://nekoflash.ncorror.chatgpt.site/"><img src="docs/assets/nekoflash-2.0-banner.webp" width="960" alt="NekoFlash 2.0 — Android flashing over USB OTG, without a PC"></a></p>
 
 <p align="center"><strong>ADB · Fastboot · Recovery · Sideload</strong><br>Use one Android phone to manage another over USB OTG.</p>

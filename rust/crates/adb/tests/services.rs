@@ -230,3 +230,11 @@ fn drains_independent_stdout_packets_before_close_stdin_ack() {
     );
     assert_eq!(out, b"ab");
 }
+
+#[test]
+fn wireless_classic_peer_requires_a_valid_banner_checksum() {
+    let mut bad = banner();
+    bad[16..20].fill(0);
+    let plain = Replay::new(vec![packet(b"STLS", V, 0, b"")]);
+    assert!(Connection::wireless(plain, |_, _| Ok(Replay::new(vec![bad])), deadline()).is_err());
+}

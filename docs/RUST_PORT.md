@@ -10,7 +10,7 @@ Independent repository: `Ncorror/NekoFlash-2.0-Rust`. Preserve Git history, auth
 | Android application | Kotlin UI, service ownership, permission and SAF lifecycle | Separate application ID and public workspace. |
 | `transport` | TCP deadlines and shutdown, synchronous bulk I/O on duplicated USB descriptors | Rust diagnostic queries. Kotlin and the existing C++ URB queue own the established production transports. |
 | `fastboot` | FB01/TCP framing, getvar, inventory, observed slot targets and bounded download/flash transactions | Opt-in scalar getvar via OTG/TCP. The terminal tokenizer uses Rust. The established backend handles flashing, logical partitions and recovery. |
-| `adb` | CNXN/AUTH/STLS, single-service streams, shell, SYNC and sideload | Rust checksums. Android owns pairing, keys, authenticated dispatch, file operations and sideload verdicts. |
+| `adb` | CNXN/AUTH/STLS, single-service streams, shell, SYNC and sideload | Rust checksums and opt-in Wireless ADB negotiation. Android supplies the paired TLS socket, keys, dispatcher, file operations and sideload verdicts. |
 | `images` | Sparse v1 structural inspection and a bounded RAW/FILL writer | Production sparse inspection via JNI. Kotlin generates ext4/F2FS metadata and streams sparse output to the staging file. |
 | `core` and `android` | Protocol facade and a static archive linked by NDK CMake into `libnekoflash_core.so` | Four Android ABIs. JNI borrows arrays synchronously and duplicates borrowed descriptors for native I/O. |
 | Operations | Kotlin serial binding, foreground admission, plan composition, script execution, confirmation, progress and recovery journal | Existing device and account operations stay available while native alternatives undergo parity testing. |
@@ -42,10 +42,16 @@ fastboot --rust getvar product
 fastboot --rust -s tcp:192.0.2.10:5554 getvar current-slot
 ```
 
+After pairing in the Wi-Fi dialog, the following terminal command uses Rust to negotiate STLS on the displayed **connection** port. Android performs the TLS handshake using the enrolled host key. Subsequent shell and transfer commands use the same authenticated socket and dispatcher.
+
+```text
+adb --rust connect 192.0.2.10:37001
+```
+
 ## Qualification still required
 
 - Compare Rust OTG reads on real bootloaders, read-only inventory on A/B and non-A/B devices, and disconnect during transfers. Each USB connection requires Android's permission and exclusive interface ownership.
-- Connect the Rust ADB service path to Android's paired TLS and key-store adapters. Compare binary shell records, multi-file SYNC and recovery sideload against the installed Kotlin paths.
+- Qualify the opt-in Rust STLS handshake on paired devices, connect the USB AUTH signer, and integrate Rust service streams with Android. Compare binary shell records, multi-file SYNC and recovery sideload against the installed Kotlin paths.
 - Qualify native DATA/flash, fetch, logical-partition operations, filesystem generation, script execution and cancellation against the existing Android operation review and recovery behavior before switching their backends.
 - Record device model, topology, transfer throughput, CPU, peak memory and outcomes for each hardware test. Test images, disposable partitions and explicit device authorization are prerequisites for destructive validation.
 
@@ -94,3 +100,9 @@ The starter preserved the upstream history, license, notices and Android engines
 - Shell v2 now drains stdout/stderr while CLOSE_STDIN is being acknowledged. Closing a broken TCP connection releases the socket even if an unused cancellation handle survives.
 - Local verification passed for Rust formatting, locked Clippy and 40 Rust tests, including fragmented TCP getvar and early-close shell. A JVM loaded the C++/Rust JNI library and exercised unsigned checksum, UTF-16 tokenization, sparse descriptor ownership and cancellation, and scoped getvar against a real loopback peer. Android built the debug and instrumentation APKs. All 566 JVM tests passed without skips and lint reported zero findings. The APK check verifies ELF ABI, 16 KiB alignment and exported Rust bridge entry points for every ABI. Physical device verification remains pending.
 - Run [45774333756](https://github.com/Ncorror/NekoFlash-2.0-Rust/actions/runs/45774333756) showed that both emulator images still require 7372.80 MiB free for userdata despite the requested size. Only 5392 MiB and 4899 MiB were available. CI now reclaims unused preinstalled SDKs on the disposable hosted runner before building. The artifact service also reported an account storage quota error.
+
+## 2026-11-26 — Wireless ADB through the Android TLS adapter
+
+- Added an explicit terminal connection path through the Rust CNXN/STLS engine. Handshake callbacks run synchronously on the owning Android I/O thread. The dispatcher starts only after TLS completes and Rust validates the device banner. Protocol or TLS failures close the session. Connection admission refuses to interrupt an active device operation.
+- Shared the existing four wireless scenarios between connection paths and now run them against the Rust bridge in installed Android tests. The suite covers pairing, shell, binary and empty-file SYNC pushes, bounded metadata probing, and two reboot disconnect orderings.
+- Host checks passed for formatting, Clippy and 41 Rust tests. A Linux JNI build passed all four wireless scenarios over real loopback TLS with Android's pairing library. The standard host JVM suite passed all 566 tests with zero skips, and lint reported zero findings. Android-specific file descriptor tests run on the installed app.

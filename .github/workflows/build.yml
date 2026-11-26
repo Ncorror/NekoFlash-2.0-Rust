@@ -157,6 +157,48 @@ jobs:
           assert not findings, f"Android Lint must be warning-free: {len(findings)} findings"
           PY
 
+      - name: Prepare Debug artifact
+        id: debug_package
+        run: |
+          set -euo pipefail
+
+          VERSION_NAME="$(
+            sed -nE \
+              's/^[[:space:]]*versionName[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' \
+              app/build.gradle | head -1
+          )"
+
+          DEBUG_APK="$(
+            find app/build/outputs/apk/debug \
+              -type f \
+              -name '*.apk' \
+              -print \
+              -quit
+          )"
+
+          test -n "$VERSION_NAME"
+          test -n "$DEBUG_APK"
+          test -f "$DEBUG_APK"
+
+          mkdir -p artifacts/debug
+
+          cp "$DEBUG_APK" \
+            "artifacts/debug/NekoFlash-${VERSION_NAME}-debug.apk"
+
+          cp build/filesystem-tools/filesystem-tools-source.tar.gz artifacts/debug/
+          cp build/filesystem-tools/build-info.json artifacts/debug/filesystem-tools-build-info.json
+
+          cd artifacts/debug
+          sha256sum *.apk > checksums-sha256.txt
+
+          ls -lh
+          cat checksums-sha256.txt
+
+      - name: Verify tester kit against the built APK
+        run: |
+          python3 scripts/package_tester_kit.py artifacts/debug "$RUNNER_TEMP/tester-kit" --commit "$GITHUB_SHA" --run "$GITHUB_RUN_ID"
+          python3 scripts/verify_tester_kit.py "$RUNNER_TEMP/tester-kit" --source-artifact artifacts/debug --commit "$GITHUB_SHA"
+
       - name: Prepare emulator access and disk space
         run: |
           sudo chmod 666 /dev/kvm
@@ -231,6 +273,7 @@ jobs:
           retention-days: 14
 
       - name: Upload instrumentation APK
+        if: ${{ !cancelled() && steps.apks.outcome == 'success' }}
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: NekoFlash-${{ github.sha }}-android-test
@@ -250,43 +293,8 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
-      - name: Prepare Debug artifact
-        run: |
-          set -euo pipefail
-
-          VERSION_NAME="$(
-            sed -nE \
-              's/^[[:space:]]*versionName[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' \
-              app/build.gradle | head -1
-          )"
-
-          DEBUG_APK="$(
-            find app/build/outputs/apk/debug \
-              -type f \
-              -name '*.apk' \
-              -print \
-              -quit
-          )"
-
-          test -n "$VERSION_NAME"
-          test -n "$DEBUG_APK"
-          test -f "$DEBUG_APK"
-
-          mkdir -p artifacts/debug
-
-          cp "$DEBUG_APK" \
-            "artifacts/debug/NekoFlash-${VERSION_NAME}-debug.apk"
-
-          cp build/filesystem-tools/filesystem-tools-source.tar.gz artifacts/debug/
-          cp build/filesystem-tools/build-info.json artifacts/debug/filesystem-tools-build-info.json
-
-          cd artifacts/debug
-          sha256sum *.apk > checksums-sha256.txt
-
-          ls -lh
-          cat checksums-sha256.txt
-
       - name: Upload Debug APK
+        if: ${{ !cancelled() && steps.debug_package.outcome == 'success' }}
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: NekoFlash-${{ github.sha }}-debug

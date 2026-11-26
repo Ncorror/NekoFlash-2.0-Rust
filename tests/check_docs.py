@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 CURRENT_FILES = {
     "README.md", "README_ru.md", "PRIVACY.md", "THIRD_PARTY_NOTICES.md",
     "ASSETS_LICENSE.md", "CHANGELOG.md",
-    "docs/README.md", "docs/STATUS.md", "docs/AUDIT_2026-11-13.md",
+    "docs/RUST_PORT.md", "docs/README.md", "docs/STATUS.md", "docs/AUDIT_2026-11-13.md",
     "docs/HARDWARE_VALIDATION.md", "docs/USB_CONNECTION_TROUBLESHOOTING.md",
     "docs/SECURITY.md", "docs/REPOSITORY_SECURITY.md", "docs/LEGAL_REVIEW.md",
     "docs/PROFESSIONAL_RECOVERY_POLICY.md",

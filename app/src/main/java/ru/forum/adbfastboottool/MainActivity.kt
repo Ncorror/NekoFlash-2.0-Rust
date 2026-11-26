@@ -1356,6 +1356,16 @@ class MainActivity : AppCompatActivity() {
 
     private fun handleAdbTerminalCommand(cmd: String) {
         viewModel.log("> adb $cmd")
+        val args = cmd.trim().split(Regex("\\s+"))
+        if (args.first() == "--rust") {
+            val endpoint = args.getOrNull(2)?.let(AdbWifiAddress::parse)
+            if (args.size == 3 && args[1] == "connect" && endpoint?.port != null) {
+                viewModel.connectWirelessAdb(endpoint.host, endpoint.port, useRustHandshake = true)
+            } else {
+                viewModel.log("Usage: adb --rust connect HOST:PORT")
+            }
+            return
+        }
         when (val action = parseAdbCommand(cmd)) {
             null -> return
             TerminalAction.LocalStatus -> viewModel.logConnectionStatus()

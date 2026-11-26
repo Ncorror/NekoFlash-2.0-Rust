@@ -20,6 +20,8 @@ android {
     compileSdk = 36
     ndkVersion = '27.2.12479018'
 
+    sourceSets.test.java.srcDir('src/sharedTest/java')
+    sourceSets.androidTest.java.srcDir('src/sharedTest/java')
     sourceSets.main.jniLibs.srcDir(rootProject.file('build/filesystem-tools/jniLibs'))
     sourceSets.main.assets.srcDir(rootProject.file('build/filesystem-tools/assets'))
     packaging {
