@@ -114,3 +114,8 @@ The starter preserved the upstream history, license, notices and Android engines
 - Added exact-value regressions and an installed JNI comparison across tiny layouts, group boundaries, inode profiles, and the 32-bit block limit.
 - This revision passed rustfmt, locked all-target Clippy, 44 Rust tests and 567 Android JVM tests (zero failures or skips). Android lint reported zero findings, and both APKs built. The generated 8200-block ext4 image with project IDs and casefold passed all five e2fsck phases.
 - On the previous Android run both API 26 and API 34 passed all 35 installed tests and the filesystem evidence checks after disk reclamation. The remaining failed steps reported the GitHub Actions artifact-storage quota. [Run 45820898152](https://github.com/Ncorror/NekoFlash-2.0-Rust/actions/runs/45820898152)
+
+## 2026-11-26 — Android native library size
+
+- Enabled section garbage collection for the Rust JNI shared library. The stripped library shrank from 1,363,640 to 558,464 bytes on arm64, 921,108 to 362,584 on armv7, 1,376,776 to 570,680 on x86 and 1,379,400 to 576,328 on x86_64. All four APK libraries retained their six JNI functions, 16 KiB ELF load alignment and system-library dependencies. Both debug APKs built, JVM tests and lint passed.
+- A local Linux x86_64/JDK 17 microbenchmark exercised the same Android ADB checksum entry point with the JNI library enabled and with the Kotlin fallback. With warmed 64 KiB arrays it measured 8.75 and 1.21 GiB/s respectively (median of seven 128 MiB runs). The resulting sums matched. Device transport throughput still requires hardware measurements.

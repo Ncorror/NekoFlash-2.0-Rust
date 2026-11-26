@@ -32,5 +32,5 @@ add_custom_command(OUTPUT "${rust_archive}"
 add_custom_target(nekoflash_rust_archive DEPENDS "${rust_archive}")
 add_library(nekoflash_core SHARED rust_bridge.cpp rust_wireless.cpp)
 add_dependencies(nekoflash_core nekoflash_rust_archive)
-target_link_options(nekoflash_core PRIVATE "-Wl,--exclude-libs,ALL" "-Wl,-z,max-page-size=16384")
+target_link_options(nekoflash_core PRIVATE "-Wl,--gc-sections" "-Wl,--exclude-libs,ALL" "-Wl,-z,max-page-size=16384")
 target_link_libraries(nekoflash_core PRIVATE "${rust_archive}" log dl m)
