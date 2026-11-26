@@ -124,3 +124,8 @@ The starter preserved the upstream history, license, notices and Android engines
 
 - A direct OKAY preserves colons inside an unlabelled value, including a MAC-style identifier. For INFO followed by an empty OKAY, Rust gives priority to the exact requested variable, including its partition suffix. A later line for another partition cannot replace the answer. Unlabelled single-line replies and the existing underscore spelling remain supported.
 - A fragmented loopback peer now returns different sizes for boot_a and boot_b in the same response. The Android JNI query returned only the requested size. Local verification passed 45 locked Rust tests, strict Clippy, formatting, 567 JVM tests without skips, Android lint and both APK builds.
+
+## 2026-11-27 — Wireless ADB pairing on Android 8
+
+- Run [45868985288](https://github.com/Ncorror/NekoFlash-2.0-Rust/actions/runs/45868985288) passed 40 installed tests on API 34 and 39 on API 26. The failing wireless pairing test traced a NoSuchFieldError to spake2-kt v1.0.2. The old APK contains two reads of the JDK 9 field BigInteger.TWO, one in ScalarOps class initialization and one in scalarMul8. Android 8 lacks this field.
+- Android packaging now substitutes BigInteger.valueOf(2L) for both reads in that dependency class. The pinned pairing implementation, host credentials, STLS checks and full installed test suite are preserved. Third-party notices describe the change. The Gradle wrapper can now be executed directly from a fresh checkout as documented.

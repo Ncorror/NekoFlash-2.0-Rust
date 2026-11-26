@@ -50,6 +50,8 @@ Transitive dependencies are resolved by Gradle and may carry additional notices.
 
 The declared adb-kt runtime dependencies include spake2-kt `v1.0.2` (Apache License 2.0), Bouncy Castle Java `1.85` (Bouncy Castle license), Okio JVM `3.18.1` (Apache License 2.0) and Kotlin standard library `2.4.10` (Apache License 2.0).
 
+When packaging spake2-kt for Android, NekoFlash replaces the two `BigInteger.TWO` reads in `ScalarOps` with `BigInteger.valueOf(2L)` for Android 8 compatibility. Both expressions represent the same integer.
+
 Upstream license references:
 
 - AndroidX: https://github.com/androidx/androidx/blob/androidx-main/LICENSE.txt

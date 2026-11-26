@@ -1,3 +1,13 @@
+import com.android.build.api.instrumentation.AsmClassVisitorFactory
+import com.android.build.api.instrumentation.ClassContext
+import com.android.build.api.instrumentation.ClassData
+import com.android.build.api.instrumentation.FramesComputationMode
+import com.android.build.api.instrumentation.InstrumentationParameters
+import com.android.build.api.instrumentation.InstrumentationScope
+import org.objectweb.asm.ClassVisitor
+import org.objectweb.asm.MethodVisitor
+import org.objectweb.asm.Opcodes
+
 plugins {
     id('com.android.application')
     id('org.jetbrains.kotlin.android')
@@ -130,6 +140,43 @@ android {
         lintConfig = file("../lint.xml")
         disable('OldTargetApi')
     }
+}
+
+// spake2-kt v1.0.2 uses a JDK 9 field absent from Android 8. Keep the
+// pinned library and use the same BigInteger constant on every supported API.
+@groovy.transform.CompileStatic
+abstract class Spake2BigIntegerCompat implements AsmClassVisitorFactory<InstrumentationParameters.None> {
+    @Override
+    boolean isInstrumentable(ClassData data) {
+        return data.className == 'io.github.rhythmache.spake2.internal.field.ScalarOps'
+    }
+
+    @Override
+    ClassVisitor createClassVisitor(ClassContext context, ClassVisitor next) {
+        return new ClassVisitor(Opcodes.ASM9, next) {
+            @Override
+            MethodVisitor visitMethod(int access, String name, String descriptor, String signature, String[] exceptions) {
+                MethodVisitor method = super.visitMethod(access, name, descriptor, signature, exceptions)
+                return new MethodVisitor(Opcodes.ASM9, method) {
+                    @Override
+                    void visitFieldInsn(int opcode, String owner, String field, String type) {
+                        if (opcode == Opcodes.GETSTATIC && owner == 'java/math/BigInteger' &&
+                                field == 'TWO' && type == 'Ljava/math/BigInteger;') {
+                            super.visitLdcInsn(2L)
+                            super.visitMethodInsn(Opcodes.INVOKESTATIC, owner, 'valueOf', '(J)Ljava/math/BigInteger;', false)
+                        } else {
+                            super.visitFieldInsn(opcode, owner, field, type)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+androidComponents.onVariants(androidComponents.selector().all()) { variant ->
+    variant.instrumentation.transformClassesWith(Spake2BigIntegerCompat, InstrumentationScope.ALL) {}
+    variant.instrumentation.setAsmFramesComputationMode(FramesComputationMode.COMPUTE_FRAMES_FOR_INSTRUMENTED_METHODS)
 }
 
 kotlin {
