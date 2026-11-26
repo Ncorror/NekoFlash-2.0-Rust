@@ -101,3 +101,16 @@ Java_ru_forum_adbfastboottool_RustCore_queryVariable(JNIEnv* env, jobject, jint 
     env->SetByteArrayRegion(packet, 1, length, reinterpret_cast<const jbyte*>(reply.bytes));
     return packet;
 }
+
+extern "C" bool nekoflash_ext4_geometry(uint64_t, uint64_t, uint64_t, uint32_t, int64_t (*)[7]);
+
+extern "C" JNIEXPORT jlongArray JNICALL
+Java_ru_forum_adbfastboottool_RustCore_ext4Geometry(JNIEnv* env, jobject, jlong blocks,
+        jlong reserved, jlong inodes, jint inode_size) {
+    int64_t fields[7];
+    if (!nekoflash_ext4_geometry(blocks, reserved, inodes, inode_size, &fields)) return nullptr;
+    const jlong values[] = {fields[0], fields[1], fields[2], fields[3], fields[4], fields[5], fields[6]};
+    auto result = env->NewLongArray(7);
+    if (result) env->SetLongArrayRegion(result, 0, 7, values);
+    return result;
+}

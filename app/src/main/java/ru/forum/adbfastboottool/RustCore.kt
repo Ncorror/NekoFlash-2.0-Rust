@@ -32,6 +32,8 @@ internal object RustCore {
 
     external fun tokenize(text: String, sink: java.util.function.BiConsumer<String, String>)
 
+    external fun ext4Geometry(blocks: Long, reserved: Long, inodes: Long, inodeSize: Int): LongArray?
+
     external fun sparseInfo(fd: Int, checkCancelled: Runnable): LongArray
 
     external fun checksum(payload: ByteArray): Int

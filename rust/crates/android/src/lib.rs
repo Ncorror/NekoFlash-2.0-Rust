@@ -104,3 +104,32 @@ pub unsafe extern "C" fn nekoflash_tokenize(
 mod getvar;
 
 mod wireless;
+
+/// # Safety
+/// On success, writes the seven geometry fields into caller-owned storage.
+#[no_mangle]
+pub unsafe extern "C" fn nekoflash_ext4_geometry(
+    blocks: u64,
+    reserved: u64,
+    inodes: u64,
+    inode_size: u32,
+    output: *mut [i64; 7],
+) -> bool {
+    let Some(output) = (unsafe { output.as_mut() }) else {
+        return false;
+    };
+    let Ok(g) = nekoflash_core::images::ext4::geometry(blocks, reserved, inodes, inode_size) else {
+        return false;
+    };
+    *output = [
+        g.blocks,
+        g.reserved,
+        g.blocks_per_group,
+        g.groups,
+        g.descriptor_blocks,
+        g.inodes_per_group,
+        g.inode_blocks_per_group,
+    ]
+    .map(|n| n as i64);
+    true
+}

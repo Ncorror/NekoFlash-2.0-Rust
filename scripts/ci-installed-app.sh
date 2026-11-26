@@ -20,5 +20,5 @@ adb exec-out run-as ru.forum.adbfastboottool.rust.dev cat files/source-test-outp
 adb exec-out run-as ru.forum.adbfastboottool.rust.dev cat files/source-test-output/mass-saf-queue.png > android-source-ui/mass-saf-queue.png
 python3 -c "from pathlib import Path; p=Path('android-source-ui'); assert all((p/n).stat().st_size > 0 for n in ('quick-restored.png', 'quick-unavailable.png', 'quick-partition-menu.png', 'mass-saf-queue.png'))"
 python3 "$project/tests/collect_android_ui.py" --output android-interface-ui
-python3 -c "from pathlib import Path; s=Path('android-mkfs-tests.txt').read_text(); assert 'OK (39 tests)' in s and 'FAILURES' not in s, s"
+python3 -c "from pathlib import Path; s=Path('android-mkfs-tests.txt').read_text(); assert 'OK (40 tests)' in s and 'FAILURES' not in s, s"
 python3 "$project/tests/verify_android_filesystems.py" --output android-mkfs-images
