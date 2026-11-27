@@ -5,7 +5,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-REPO="${NEKOFLASH_REPO:-Ncorror/NekoFlash-2.0}"
+REPO="${NEKOFLASH_REPO:-Ncorror/NekoFlash-2.0-Rust}"
 TARGET_BRANCH="${NEKOFLASH_TARGET_BRANCH:-main}"
 SOURCE_ZIP=""
 EXPECTED_SHA256=""

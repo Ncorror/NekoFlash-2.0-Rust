@@ -9,7 +9,8 @@ import org.junit.rules.TemporaryFolder
 class FastbootFilesystemFormatterTest {
     @get:Rule val temporary = TemporaryFolder()
 
-    private fun tool(name: String): File = listOf("/usr/sbin", "/sbin", "/usr/bin").map { File(it, name) }
+    private fun tool(name: String): File = (listOf("/usr/sbin", "/sbin", "/usr/bin") +
+        System.getenv("PATH").orEmpty().split(File.pathSeparatorChar).filter(String::isNotBlank)).map { File(it, name) }
         .firstOrNull { it.isFile && it.canExecute() } ?: error("Required integration-test tool is missing: $name")
 
     private fun validate(type: String, bytes: Long, options: Set<String> = emptySet()) {

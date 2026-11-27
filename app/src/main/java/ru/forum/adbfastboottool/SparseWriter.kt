@@ -1,6 +1,7 @@
 package ru.forum.adbfastboottool
 
 import java.io.ByteArrayOutputStream
+import java.io.OutputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
@@ -21,59 +22,67 @@ internal sealed interface SparseChunk {
  * `DONT_CARE`. Так пишут образы `mke2fs -E android_sparse` и `ImageBuilder`.
  */
 internal object SparseWriter {
-    fun write(blockSize: Int, totalBlocks: Long, chunks: List<SparseChunk>): ByteArray {
-        require(totalBlocks in 0..UINT) { "Block device is too large to encode with libsparse." }
-        val body = ByteArrayOutputStream()
-        var count = 0
+    fun write(blockSize: Int, totalBlocks: Long, chunks: List<SparseChunk>): ByteArray =
+        ByteArrayOutputStream().also { writeTo(it, SparsePlan(blockSize, totalBlocks, chunks)) {} }.toByteArray()
+
+    fun writeTo(output: OutputStream, plan: SparsePlan, checkCancelled: () -> Unit) {
+        val (blockSize, totalBlocks, chunks) = plan
+        require(blockSize > 0 && totalBlocks in 0..UINT)
+        fun blocks(chunk: SparseChunk): Long = when (chunk) {
+            is SparseChunk.Fill -> chunk.blocks
+            is SparseChunk.Raw -> (chunk.bytes.size.toLong() + blockSize - 1) / blockSize
+        }
+        var count = 0L
         var at = 0L
         for (chunk in chunks) {
-            require(chunk.block >= at) { "sparse chunks overlap at block ${chunk.block}" }
-            if (chunk.block > at) {
-                body.write(header(CHUNK_DONT_CARE, chunk.block - at, 0))
-                count++
-            }
-            at = chunk.block + when (chunk) {
+            checkCancelled()
+            val size = blocks(chunk)
+            require(chunk.block in at..totalBlocks && size in 0..(totalBlocks - chunk.block))
+            if (chunk is SparseChunk.Raw) require(size * blockSize <= UINT - CHUNK_HEADER_LEN)
+            count += if (chunk.block > at) 2 else 1
+            at = chunk.block + size
+        }
+        if (at < totalBlocks) count++
+        require(count <= UINT)
+        val header = ByteBuffer.allocate(HEADER_LEN).order(ByteOrder.LITTLE_ENDIAN)
+        header.putInt(MAGIC).putShort(MAJOR.toShort()).putShort(0)
+            .putShort(HEADER_LEN.toShort()).putShort(CHUNK_HEADER_LEN.toShort())
+            .putInt(blockSize).putInt(totalBlocks.toInt()).putInt(count.toInt()).putInt(0)
+        output.write(header.array())
+
+        fun chunkHeader(type: Int, size: Long, payload: Long) {
+            header.clear()
+            header.putShort(type.toShort()).putShort(0).putInt(size.toInt()).putInt((CHUNK_HEADER_LEN + payload).toInt())
+            output.write(header.array(), 0, CHUNK_HEADER_LEN)
+        }
+        at = 0
+        for (chunk in chunks) {
+            checkCancelled()
+            if (chunk.block > at) chunkHeader(CHUNK_DONT_CARE, chunk.block - at, 0)
+            val size = blocks(chunk)
+            when (chunk) {
                 is SparseChunk.Fill -> {
-                    body.write(header(CHUNK_FILL, chunk.blocks, FILL_BYTES))
-                    body.write(ByteBuffer.allocate(FILL_BYTES).order(ByteOrder.LITTLE_ENDIAN).putInt(chunk.value).array())
-                    chunk.blocks
+                    chunkHeader(CHUNK_FILL, size, FILL_BYTES.toLong())
+                    header.putInt(0, chunk.value)
+                    output.write(header.array(), 0, FILL_BYTES)
                 }
                 is SparseChunk.Raw -> {
-                    val blocks = (chunk.bytes.size + blockSize - 1) / blockSize
-                    body.write(header(CHUNK_RAW, blocks.toLong(), blocks * blockSize))
-                    body.write(chunk.bytes)
-                    body.write(ByteArray(blocks * blockSize - chunk.bytes.size))
-                    blocks.toLong()
+                    chunkHeader(CHUNK_RAW, size, size * blockSize)
+                    var offset = 0
+                    while (offset < chunk.bytes.size) {
+                        checkCancelled()
+                        val n = minOf(64 * 1024, chunk.bytes.size - offset)
+                        output.write(chunk.bytes, offset, n)
+                        offset += n
+                    }
+                    val padding = (size * blockSize - chunk.bytes.size).toInt()
+                    if (padding > 0) output.write(ByteArray(padding))
                 }
             }
-            count++
+            at = chunk.block + size
         }
-        require(at <= totalBlocks) { "sparse chunks run past block $totalBlocks" }
-        if (at < totalBlocks) {
-            body.write(header(CHUNK_DONT_CARE, totalBlocks - at, 0))
-            count++
-        }
-        val file = ByteBuffer.allocate(HEADER_LEN).order(ByteOrder.LITTLE_ENDIAN).apply {
-            putInt(MAGIC)
-            putShort(MAJOR.toShort())
-            putShort(0)
-            putShort(HEADER_LEN.toShort())
-            putShort(CHUNK_HEADER_LEN.toShort())
-            putInt(blockSize)
-            putInt(totalBlocks.toInt())
-            putInt(count)
-            putInt(0)
-        }.array()
-        return file + body.toByteArray()
+        if (at < totalBlocks) chunkHeader(CHUNK_DONT_CARE, totalBlocks - at, 0)
     }
-
-    private fun header(type: Int, blocks: Long, payload: Int): ByteArray =
-        ByteBuffer.allocate(CHUNK_HEADER_LEN).order(ByteOrder.LITTLE_ENDIAN).apply {
-            putShort(type.toShort())
-            putShort(0)
-            putInt(blocks.toInt())
-            putInt(CHUNK_HEADER_LEN + payload)
-        }.array()
 
     private const val MAGIC = 0xed26ff3a.toInt()
     private const val HEADER_LEN = 28
@@ -85,3 +94,5 @@ internal object SparseWriter {
     private const val MAJOR = 1
     private const val UINT = 0xFFFF_FFFFL
 }
+
+internal data class SparsePlan(val blockSize: Int, val totalBlocks: Long, val chunks: List<SparseChunk>)

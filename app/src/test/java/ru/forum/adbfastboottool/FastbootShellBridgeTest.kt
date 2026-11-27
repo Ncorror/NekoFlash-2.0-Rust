@@ -23,7 +23,7 @@ class FastbootShellBridgeTest {
             Socket(InetAddress.getByName("127.0.0.1"), bridge.port).use { socket ->
                 val writer = OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8)
                 writer.appendLine(bridge.authToken)
-                writer.appendLine("/storage/emulated/0/Download/NekoFlash")
+                writer.appendLine("/storage/emulated/0/Download/NekoFlash-Rust")
                 writer.appendLine("-s")
                 writer.appendLine("device-serial")
                 writer.appendLine("flash")
@@ -39,7 +39,7 @@ class FastbootShellBridgeTest {
             }
         }
         val request = requireNotNull(received.get())
-        assertEquals("/storage/emulated/0/Download/NekoFlash", request.first)
+        assertEquals("/storage/emulated/0/Download/NekoFlash-Rust", request.first)
         assertEquals(listOf("-s", "device-serial", "flash", "boot_a", "boot image.img"), request.second)
     }
 

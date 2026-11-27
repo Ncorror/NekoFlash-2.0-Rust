@@ -116,7 +116,7 @@ class DeviceViewModel(application: Application) : AndroidViewModel(application) 
     internal val localTerminalHome = File(application.filesDir, "HOME")
     private val publicNekoWorkspace = File(
         Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-        "NekoFlash",
+        RustWorkspace.FOLDER,
     )
     internal val localShell = LocalShell(
         availableSpace = { StatFs(it.absolutePath).availableBytes },
@@ -510,7 +510,7 @@ class DeviceViewModel(application: Application) : AndroidViewModel(application) 
         logFile = createdLog
         traceLogFile = store.currentTraceFile()
         persistSessionSummary()
-        log("Log file: /sdcard/Download/NekoFlash/logs/${createdLog?.name ?: "log-$stamp.txt"}")
+        log("Log file: ${logsDir.absolutePath}/${createdLog?.name ?: "log-$stamp.txt"}")
         log("ℹ️ " + text(R.string.rev11_log_trace_location_info))
     }
 
@@ -736,7 +736,7 @@ class DeviceViewModel(application: Application) : AndroidViewModel(application) 
         AdbWirelessClient(wirelessAdbKeys).pair(host, port, code)
     }
 
-    internal fun connectWirelessAdb(host: String, port: Int) {
+    internal fun connectWirelessAdb(host: String, port: Int, useRustHandshake: Boolean = false) {
         if (transportRestartRequired.get()) {
             log(text(R.string.adb_wifi_restart_transport))
             _connectionState.postValue(ConnectionState.ERROR)
@@ -744,6 +744,14 @@ class DeviceViewModel(application: Application) : AndroidViewModel(application) 
         }
         synchronized(operationLaunchLock) {
             if (viewModelCleared.get()) return
+            if (useRustHandshake && (connectionJob?.isCompleted == false || hasUnfinishedUsbOperation())) {
+                log("Wireless ADB connection not started: finish the active transport operation first.")
+                return
+            }
+            if (useRustHandshake && !RustCore.available) {
+                log("Rust JNI library is unavailable")
+                return
+            }
             val generation = connectionGeneration.incrementAndGet()
             val endpoint = if (':' in host) "[$host]:$port" else "$host:$port"
             pendingUsbTargetKey = null
@@ -770,6 +778,7 @@ class DeviceViewModel(application: Application) : AndroidViewModel(application) 
                     connectAdbLocked(
                         AdbProtocol(
                             keyStore = wirelessAdbKeys,
+                            useRustHandshake = useRustHandshake,
                             host = host,
                             port = port,
                             rawShellLogsDir = File(workspaceRoot ?: getApplication<Application>().filesDir, "logs"),
@@ -2011,6 +2020,29 @@ class DeviceViewModel(application: Application) : AndroidViewModel(application) 
         if (operation == null) return
         if (localScriptFastbootActive) fastbootProtocol?.cancel()
         if (operation.cancellation.cancel()) operation.job.cancel()
+    }
+
+    private var rustNetworkQuery: Job? = null
+
+    /** Explicit read-only Rust diagnostic; a TCP probe owns its one-shot socket. */
+    internal fun runRustGetVar(name: String, peer: String?) {
+        if (peer == null) {
+            startOperation(text(R.string.notif_fastboot_command), "getvar:$name", heavy = false,
+                requiredTransport = UsbOperationAdmission.RequiredTransport.FASTBOOT) {
+                val proto = fastbootProtocol ?: failOperation(text(R.string.error_no_fastboot))
+                log("getvar:$name = ${proto.rustGetVar(name)}")
+            }
+            return
+        }
+        if (rustNetworkQuery?.isCompleted == false) {
+            log("A Rust Fastboot TCP query is already running.")
+            return
+        }
+        rustNetworkQuery = transportScope.launch {
+            val result = runCatching { RustCore.getvar(name, peer = peer) }
+            coroutineContext.ensureActive()
+            result.fold({ log("getvar:$name = $it") }, { log("Fastboot TCP: ${it.message}") })
+        }
     }
 
     fun runFastbootCommand(cmd: String, heavy: Boolean = true, expectedSerial: String? = null) {

@@ -14,16 +14,16 @@
 #   bash scripts/termux-ci.sh --run-id 29832274659 --with-apk
 #
 # Optional environment variables:
-#   NEKOFLASH_REPO=Ncorror/NekoFlash-2.0
+#   NEKOFLASH_REPO=Ncorror/NekoFlash-2.0-Rust
 #   NEKOFLASH_WORKFLOW=build.yml
 #   NEKOFLASH_BRANCH=main
 #   NEKOFLASH_DOWNLOAD_DIR=$HOME/storage/downloads
 set -uo pipefail
 
-REPO="${NEKOFLASH_REPO:-Ncorror/NekoFlash-2.0}"
+REPO="${NEKOFLASH_REPO:-Ncorror/NekoFlash-2.0-Rust}"
 WORKFLOW="${NEKOFLASH_WORKFLOW:-build.yml}"
 BRANCH="${NEKOFLASH_BRANCH:-main}"
-PROJECT_DIR="${NEKOFLASH_PROJECT_DIR:-$HOME/NekoFlash-2.0}"
+PROJECT_DIR="${NEKOFLASH_PROJECT_DIR:-$HOME/NekoFlash-2.0-Rust}"
 DOWNLOAD_DIR="${NEKOFLASH_DOWNLOAD_DIR:-$HOME/storage/downloads}"
 RUN_ID=""
 LAUNCH_NEW=1
@@ -128,8 +128,8 @@ fi
 
 RESULT_NAME="NekoFlash-CI-$RUN_ID"
 APK_RESULT_NAME="NekoFlash-APK-$RUN_ID"
-LOCAL_RESULT_DIR="$HOME/NekoFlash-CI/run-$RUN_ID"
-LOCAL_APK_DIR="$HOME/NekoFlash-CI/apk-$RUN_ID"
+LOCAL_RESULT_DIR="$HOME/NekoFlash-Rust-CI/run-$RUN_ID"
+LOCAL_APK_DIR="$HOME/NekoFlash-Rust-CI/apk-$RUN_ID"
 ANDROID_RESULT_DIR="$DOWNLOAD_DIR/$RESULT_NAME"
 ANDROID_APK_DIR="$DOWNLOAD_DIR/$APK_RESULT_NAME"
 ZIP_PATH="$DOWNLOAD_DIR/$RESULT_NAME.zip"

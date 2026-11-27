@@ -20,6 +20,18 @@ with zipfile.ZipFile(args.apk) as apk, tempfile.TemporaryDirectory() as temp:
     for name in ('e2fsprogs-NOTICE.txt', 'libuuid-COPYING.txt', 'f2fs-tools-COPYING.txt', 'README.txt'):
         assert len(apk.read('assets/filesystem-tools/' + name)) > 100
     for abi, (elf_class, machine) in machines.items():
+        core = Path(temp) / 'libnekoflash_core.so'
+        core.write_bytes(apk.read(f'lib/{abi}/{core.name}'))
+        with core.open('rb') as elf:
+            header = elf.read(20)
+        assert header[:6] == b'\x7fELF' + bytes([elf_class, 1])
+        assert struct.unpack_from('<HH', header, 16) == (3, machine)
+        symbols = subprocess.check_output(['readelf', '-Ws', str(core)], text=True)
+        for method in ('checksum', 'sparseInfo', 'tokenize', 'queryVariable', 'wirelessHandshake', 'ext4Geometry', 'fastbootDataSize'):
+            assert f'Java_ru_forum_adbfastboottool_RustCore_{method}' in symbols, (abi, method)
+        segments = subprocess.check_output(['readelf', '-Wl', str(core)], text=True)
+        loads = [line for line in segments.splitlines() if line.strip().startswith('LOAD ')]
+        assert loads and all(int(line.split()[-1], 16) >= 16384 for line in loads)
         for name in ('libnekoflash_mke2fs.so', 'libnekoflash_mkfs_f2fs.so'):
             data = apk.read(f'lib/{abi}/{name}')
             assert data[:6] == b'\x7fELF' + bytes([elf_class, 1])

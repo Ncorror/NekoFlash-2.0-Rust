@@ -5,7 +5,7 @@ import java.io.File
 /**
  * File naming logic independent from Android UI and USB.
  *
- * Preserves the approved /sdcard/Download/NekoFlash workspace in the caller.
+ * Preserves the approved /sdcard/Download/NekoFlash-Rust workspace in the caller.
  * A provider-supplied filename is never trusted as a directory component.
  * We do not silently cut filenames at a made-up character limit; the filesystem
  * reports its actual length/encoding constraints to the importing operation.

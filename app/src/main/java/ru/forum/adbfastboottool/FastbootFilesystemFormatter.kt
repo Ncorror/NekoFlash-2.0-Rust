@@ -62,7 +62,7 @@ internal class FastbootFilesystemFormatter(
         )
         log("Host filesystem: ext4, $size bytes, generator=AOSP mke2fs android_sparse compatible")
         return writeSparse(directory, size, checkCancelled) {
-            FastbootExt4.image(request).getOrElse {
+            FastbootExt4.plan(request).getOrElse {
                 throw IllegalStateException("AOSP-compatible ext4 sparse generation failed: ${it.message}", it)
             }
         }
@@ -87,7 +87,7 @@ internal class FastbootFilesystemFormatter(
         )
         log("Host filesystem: f2fs, $size bytes, generator=AOSP make_f2fs -S compatible")
         return writeSparse(directory, size, checkCancelled) {
-            FastbootF2fs.image(request).getOrElse {
+            FastbootF2fs.plan(request).getOrElse {
                 throw IllegalStateException("AOSP-compatible F2FS sparse generation failed: ${it.message}", it)
             }
         }
@@ -97,15 +97,15 @@ internal class FastbootFilesystemFormatter(
         directory: File,
         size: Long,
         checkCancelled: () -> Unit,
-        image: () -> ByteArray
+        image: () -> SparsePlan
     ): File {
         val sparse = File.createTempFile("filesystem-", ".sparse", directory)
         var keep = false
         try {
             checkCancelled()
-            val bytes = image()
+            val plan = image()
             checkCancelled()
-            sparse.writeBytes(bytes)
+            sparse.outputStream().buffered().use { SparseWriter.writeTo(it, plan, checkCancelled) }
             require(AndroidSparseImage.inspect(sparse, checkCancelled).expandedBytes == size) {
                 "Generated sparse filesystem geometry mismatch"
             }

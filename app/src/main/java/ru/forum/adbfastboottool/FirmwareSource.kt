@@ -10,7 +10,7 @@ import java.io.RandomAccessFile
 import java.nio.ByteBuffer
 
 /**
- * A file source is independent from the Download/NekoFlash workspace.
+ * A file source is independent from the Download/NekoFlash-Rust workspace.
  * Sideload needs seekable blocks. SAF pipes are rejected before USB writes.
  */
 internal sealed interface FirmwareSource {

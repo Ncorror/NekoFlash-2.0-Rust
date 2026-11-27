@@ -49,7 +49,7 @@ class TerminalAndImportAndroidTest {
     private val instrumentation get() = InstrumentationRegistry.getInstrumentation()
     private val context get() = instrumentation.targetContext
     private val resolver get() = context.contentResolver
-    private val uri = Uri.parse("content://ru.forum.adbfastboottool.dev.test.images/import")
+    private val uri = Uri.parse("content://ru.forum.adbfastboottool.rust.dev.test.images/import")
     private val workspace get() = File(context.filesDir, "rev26-import-fixture")
     private val prefs get() = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
     private var previousLanguage: String? = null
@@ -213,7 +213,7 @@ class TerminalAndImportAndroidTest {
         }
         waitUntil("workspace storage access") { PermissionGate.hasStorage(context) }
         val downloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-        val sharedWorkspace = File(downloads, "NekoFlash").apply { mkdirs() }
+        val sharedWorkspace = File(downloads, RustWorkspace.FOLDER).apply { mkdirs() }
         val fixture = Files.createTempDirectory(sharedWorkspace.toPath(), "local-terminal-").toFile()
         val sourceBytes = ByteArray(4_096) { (it * 13).toByte() }
         val existingBytes = byteArrayOf(11, 22, 33)
@@ -229,10 +229,10 @@ class TerminalAndImportAndroidTest {
             note.writeText("Workspace note from cat\n")
             ActivityScenario.launch(MainActivity::class.java).use { scenario ->
                 fun run(text: String) = scenario.onActivity { command(it, text) }
-                run("local cd \"Download/NekoFlash/${fixture.name}\"")
+                run("local cd \"Download/NekoFlash-Rust/${fixture.name}\"")
                 waitUntil("local cd completed") {
                     vm().localTerminalRunning.value != true &&
-                        vm().terminalSnapshot().any { it.contains("~/Download/NekoFlash/${fixture.name}") }
+                        vm().terminalSnapshot().any { it.contains("~/Download/NekoFlash-Rust/${fixture.name}") }
                 }
 
                 run("local cp \"${source.name}\" \"${copy.name}\"")
@@ -382,8 +382,20 @@ class TerminalAndImportAndroidTest {
             vm().terminalSnapshot().any { it.startsWith("❌") && it.contains(token) }
         }
         scenario.onActivity { activity ->
-            WindowInsetsControllerCompat(activity.window, activity.findViewById(R.id.rootCoordinator))
-                .hide(WindowInsetsCompat.Type.ime())
+            val root = activity.findViewById<View>(R.id.rootCoordinator)
+            val input = activity.findViewById<EditText>(R.id.etCommand)
+            // Exercise the app's Back path rather than a raw hide request
+            // that leaves the editor focused and can keep the IME open after
+            // landscape recreation on API 34. Do not close the sheet when
+            // there is no active editor or keyboard.
+            if (input.hasFocus() ||
+                ViewCompat.getRootWindowInsets(root)?.isVisible(WindowInsetsCompat.Type.ime()) == true
+            ) {
+                val controller = field(activity, "consoleDockController") as ConsoleDockController
+                assertTrue("Terminal did not handle keyboard dismissal", controller.handleBack())
+                assertFalse("Keyboard dismissal left the command editor focused", input.hasFocus())
+                assertTrue("Keyboard dismissal collapsed the terminal", controller.isExpanded)
+            }
         }
         try {
             waitUi(scenario, "command result rendered below the terminal header") { activity ->

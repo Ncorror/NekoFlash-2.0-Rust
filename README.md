@@ -1,5 +1,7 @@
 # NekoFlash 2.0
 
+This repository develops the Rust port. The download buttons below point to the original Kotlin release. [Rust architecture, builds and migration journal](docs/RUST_PORT.md)
+
 <p align="center"><a href="https://nekoflash.ncorror.chatgpt.site/"><img src="docs/assets/nekoflash-2.0-banner.webp" width="960" alt="NekoFlash 2.0 — Android flashing over USB OTG, without a PC"></a></p>
 
 <p align="center"><strong>ADB · Fastboot · Recovery · Sideload</strong><br>Use one Android phone to manage another over USB OTG.</p>
@@ -47,7 +49,7 @@ Host root is not required. Target operations depend on the device mode, bootload
 ## In development
 
 - **ADB over Wi-Fi.** On an Android 11+ target, open **Developer options → Wireless debugging**. In NekoFlash, open **ADB → ADB over Wi-Fi**, enter the target address, pairing port and six-digit code from the target's pairing dialog, then tap **Pair**. To connect, use the address and connection port from the main **Wireless debugging** screen. Paste `IP:port` or fill in the address and port separately. [Android wireless debugging guide](https://developer.android.com/tools/adb#connect-to-a-device-over-wi-fi).
-- **ADB transfers.** Terminal `adb push` and `adb pull` accept multiple sources followed by an existing destination directory. Under **ADB → Device files**, browse from `/sdcard`, tap a file or choose **Pull folder** to save it to `Download/NekoFlash` on the host, or use **Send here** to select files with the Android picker. The browser and terminal work over the active USB or Wi-Fi ADB connection.
+- **ADB transfers.** Terminal `adb push` and `adb pull` accept multiple sources followed by an existing destination directory. Under **ADB → Device files**, browse from `/sdcard`, tap a file or choose **Pull folder** to save it to `Download/NekoFlash-Rust` on the host, or use **Send here** to select files with the Android picker. The browser and terminal work over the active USB or Wi-Fi ADB connection.
 - **Mass Flash.** Choose **Android files · multiple images** and assign a partition to each image. Set the queue to **As listed**, **A**, **B** or **All slots**. The slot choice uses the target's per-partition layout, and explicit names such as `boot_b` are sent as listed. With Fastboot connected, **Plan** shows resolved targets and repeated writes in queue order. The **Operation Center** distinguishes written, failed and skipped targets. For longer queues, **All steps** opens the full list.
 - **Quick Flash.** NekoFlash reads the target's active slot at execution time for the current and other slot choices. Explicit target names such as `boot_a` are used as entered.
 

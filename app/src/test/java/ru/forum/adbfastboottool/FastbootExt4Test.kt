@@ -30,6 +30,14 @@ class FastbootExt4Test {
         FastbootExt4.Request(blocks * FastbootExt4.BLOCK_SIZE, erase, logical, projid, casefold, uuid, seed, NOW)
 
     @Test
+    fun projectInodeGroupMatchesMke2fsAt8200Blocks() {
+        // mke2fs -t ext4 -b 4096 -I 512 -i 4096 -m 1 image 8200; dumpe2fs -h image
+        val g = Ext4Geometry.of(8200, Ext4Profile.of(8200, projectIds = true))
+        assertEquals(8200, g.inodesPerGroup)
+        assertEquals(1025, g.inodeBlocksPerGroup)
+    }
+
+    @Test
     fun metadataSizedPartitionMatchesMke2fs() = check(request(4096), 11, "4c9f3ef03d3ce5723b867137456bb63d221833373ef8688c9a211169e74864be")
 
     @Test

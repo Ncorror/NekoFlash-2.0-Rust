@@ -63,7 +63,7 @@ def expand(source, target, overlay=False):
 def pull(name):
     target = args.output / name
     with target.open('wb') as stream:
-        subprocess.run(['adb', 'exec-out', 'run-as', 'ru.forum.adbfastboottool.dev', 'cat',
+        subprocess.run(['adb', 'exec-out', 'run-as', 'ru.forum.adbfastboottool.rust.dev', 'cat',
                         f'files/mkfs-test-output/{name}'], stdout=stream, check=True)
     return target
 

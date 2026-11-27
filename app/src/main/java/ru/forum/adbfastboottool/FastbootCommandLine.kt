@@ -5,6 +5,9 @@ internal object FastbootCommandLine {
     data class Token(val value: String, val literal: String)
 
     fun tokenize(input: String): List<Token> {
+        if (RustCore.available) return buildList {
+            RustCore.tokenize(input) { value, literal -> add(Token(value, literal)) }
+        }
         val tokens = mutableListOf<Token>()
         val value = StringBuilder()
         var start = -1

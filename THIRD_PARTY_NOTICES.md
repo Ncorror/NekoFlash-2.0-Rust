@@ -50,6 +50,8 @@ Transitive dependencies are resolved by Gradle and may carry additional notices.
 
 The declared adb-kt runtime dependencies include spake2-kt `v1.0.2` (Apache License 2.0), Bouncy Castle Java `1.85` (Bouncy Castle license), Okio JVM `3.18.1` (Apache License 2.0) and Kotlin standard library `2.4.10` (Apache License 2.0).
 
+When packaging spake2-kt for Android, NekoFlash replaces the two `BigInteger.TWO` reads in `ScalarOps` with `BigInteger.valueOf(2L)` for Android 8 compatibility. Both expressions represent the same integer.
+
 Upstream license references:
 
 - AndroidX: https://github.com/androidx/androidx/blob/androidx-main/LICENSE.txt
@@ -90,3 +92,9 @@ The following projects were implementation references and are **not vendored sou
 - **Android Open Source Project** — Apache License 2.0 and component-specific licenses — https://source.android.com/
 
 These references informed Android-to-Android USB workflows, ADB/Fastboot behavior and Xiaomi account/unlock sequencing; they do not imply affiliation or endorsement.
+
+## Rust Android core
+
+The Android Rust archive uses nix, libc, bitflags, cfg-if and cfg_aliases. Their MIT notices are included in the APK at `assets/rust/THIRD-PARTY-LICENSES.txt`. The Fastboot TCP framing follows the [AOSP Fastboot v1 specification](https://android.googlesource.com/platform/system/core/+/refs/heads/main/fastboot/README.md). USB bulk request layout follows the Linux usbdevice_fs userspace interface.
+
+The host-side Fastboot range-fetch example uses the development dependency `tempfile` 3.27.0 (MIT or Apache-2.0) for staging and no-clobber publication. [tempfile licenses](https://github.com/Stebalien/tempfile)

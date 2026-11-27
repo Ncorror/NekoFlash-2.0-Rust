@@ -144,7 +144,7 @@ class MainActivity : AppCompatActivity() {
     private var operationSessionId: String? = null
 
     private val actionUsbPermission: String by lazy { "$packageName.USB_PERMISSION" }
-    private val folderName = "NekoFlash"
+    private val folderName = RustWorkspace.FOLDER
     private lateinit var workspacePath: File
     private lateinit var importFileLauncher: ActivityResultLauncher<Intent>
     private lateinit var sideloadZipLauncher: ActivityResultLauncher<Intent>
@@ -1333,6 +1333,17 @@ class MainActivity : AppCompatActivity() {
 
     private fun handleFastbootTerminalCommand(cmd: String) {
         viewModel.log("> fastboot $cmd")
+        val args = cmd.trim().split(Regex("\\s+"))
+        if (args.first() == "--rust") {
+            val peer = args.getOrNull(2)?.removePrefix("tcp:")
+            when {
+                args.size == 3 && args[1] == "getvar" -> viewModel.runRustGetVar(args[2], null)
+                args.size == 5 && args[1] == "-s" && args[2].startsWith("tcp:") && args[3] == "getvar" ->
+                    viewModel.runRustGetVar(args[4], peer)
+                else -> viewModel.log("Usage: fastboot --rust [-s tcp:IP:PORT] getvar NAME")
+            }
+            return
+        }
         val request = parseFastbootCommand(cmd) ?: return
         val expectedSerial = request.serial
         when (val action = request.action) {
@@ -1345,6 +1356,16 @@ class MainActivity : AppCompatActivity() {
 
     private fun handleAdbTerminalCommand(cmd: String) {
         viewModel.log("> adb $cmd")
+        val args = cmd.trim().split(Regex("\\s+"))
+        if (args.first() == "--rust") {
+            val endpoint = args.getOrNull(2)?.let(AdbWifiAddress::parse)
+            if (args.size == 3 && args[1] == "connect" && endpoint?.port != null) {
+                viewModel.connectWirelessAdb(endpoint.host, endpoint.port, useRustHandshake = true)
+            } else {
+                viewModel.log("Usage: adb --rust connect HOST:PORT")
+            }
+            return
+        }
         when (val action = parseAdbCommand(cmd)) {
             null -> return
             TerminalAction.LocalStatus -> viewModel.logConnectionStatus()
@@ -1887,7 +1908,7 @@ class MainActivity : AppCompatActivity() {
 
     /**
      * A shell command, with an unquoted `> file` / `>> file` saved on this phone. The file is
-     * resolved exactly like an `adb pull` destination: relative to /sdcard/Download/NekoFlash.
+     * resolved exactly like an `adb pull` destination: relative to /sdcard/Download/NekoFlash-Rust.
      */
     private fun adbShellAction(command: String): TerminalAction? {
         return when (val parsed = AdbShellRedirectPolicy.parse(command)) {
@@ -2690,7 +2711,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun initWorkspace() {
-        // Рабочая папка теперь в системной папке «Загрузки»: /sdcard/Download/NekoFlash
+        // Рабочая папка теперь в системной папке «Загрузки»: /sdcard/Download/NekoFlash-Rust
         val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
         workspacePath = File(downloadsDir, folderName)
         if (!workspacePath.exists() && !workspacePath.mkdirs()) {

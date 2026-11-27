@@ -150,7 +150,7 @@ class AdbShellRedirectPolicyTest {
 
     @Test fun statusLinesStartWithTheMarkerThatSetsTheirLogLevel() {
         val p = AdbShellRedirectPolicy
-        val target = File("/sdcard/Download/NekoFlash/logcat.txt")
+        val target = File("/sdcard/Download/NekoFlash-Rust/logcat.txt")
         fun level(line: String) = DiagnosticLogPolicy.classify(line).level
         fun saved(end: End, bytes: Long, append: Boolean = false) =
             p.savedLine(end, target, append, bytes, bytes, 42_000L, 1)
@@ -172,20 +172,20 @@ class AdbShellRedirectPolicyTest {
     @Test fun savedLineShowsPathSizeAndTime() {
         val line = AdbShellRedirectPolicy.savedLine(
             End.COMPLETED,
-            File("/sdcard/Download/NekoFlash/logcat.txt"),
+            File("/sdcard/Download/NekoFlash-Rust/logcat.txt"),
             appended = false, bytes = 3_586_949L, totalBytes = 3_586_949L, elapsedMs = 42_000L, exitCode = 0
         )
-        assertEquals("✅ Output saved: /sdcard/Download/NekoFlash/logcat.txt · 3.42 MB · 42s", line)
+        assertEquals("✅ Output saved: /sdcard/Download/NekoFlash-Rust/logcat.txt · 3.42 MB · 42s", line)
     }
 
     @Test fun emptyOutputIsReportedPlainly() {
-        val target = File("/sdcard/Download/NekoFlash/quiet.txt")
+        val target = File("/sdcard/Download/NekoFlash-Rust/quiet.txt")
         assertEquals(
-            "⚠️ The command finished but printed nothing, so /sdcard/Download/NekoFlash/quiet.txt is empty (0 B).",
+            "⚠️ The command finished but printed nothing, so /sdcard/Download/NekoFlash-Rust/quiet.txt is empty (0 B).",
             AdbShellRedirectPolicy.savedLine(AdbShellRedirectPolicy.End.COMPLETED, target, false, 0L, 0L, 300L, 0)
         )
         assertEquals(
-            "⚠️ The command finished but printed nothing, so nothing was added to /sdcard/Download/NekoFlash/quiet.txt.",
+            "⚠️ The command finished but printed nothing, so nothing was added to /sdcard/Download/NekoFlash-Rust/quiet.txt.",
             AdbShellRedirectPolicy.savedLine(AdbShellRedirectPolicy.End.COMPLETED, target, true, 0L, 10L, 300L, 0)
         )
     }
@@ -193,10 +193,10 @@ class AdbShellRedirectPolicyTest {
     @Test fun appendedLineShowsWhatWasAddedAndTheNewTotal() {
         val line = AdbShellRedirectPolicy.savedLine(
             End.COMPLETED,
-            File("/sdcard/Download/NekoFlash/a.log"),
+            File("/sdcard/Download/NekoFlash-Rust/a.log"),
             appended = true, bytes = 2_048L, totalBytes = 10_240L, elapsedMs = 900L, exitCode = 0
         )
-        assertEquals("✅ Output appended: /sdcard/Download/NekoFlash/a.log · +2.00 KB (file is now 10.00 KB) · 900 ms", line)
+        assertEquals("✅ Output appended: /sdcard/Download/NekoFlash-Rust/a.log · +2.00 KB (file is now 10.00 KB) · 900 ms", line)
     }
 
     @Test fun progressLineShowsRateOnlyOnceItIsMeaningful() {

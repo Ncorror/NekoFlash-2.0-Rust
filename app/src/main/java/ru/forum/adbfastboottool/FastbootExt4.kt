@@ -49,7 +49,11 @@ public object FastbootExt4 {
      * (`DONT_CARE`); с `casefold` образ сплошной, как у настольного клиента,
      * и нули пишутся заполнением.
      */
-    public fun image(request: Request): Result<ByteArray> = runCatching {
+    public fun image(request: Request): Result<ByteArray> = plan(request).mapCatching {
+        SparseWriter.write(it.blockSize, it.totalBlocks, it.chunks)
+    }
+
+    internal fun plan(request: Request): Result<SparsePlan> = runCatching {
         val requested = request.sizeBytes / BLOCK_SIZE
         val geometry = Ext4Geometry.of(requested, Ext4Profile.of(requested, request.projectIds))
         val blocks = Ext4Builder(geometry, request).build()
@@ -75,7 +79,7 @@ public object FastbootExt4 {
         }
         flush()
         if (request.casefold && next < requested) chunks += SparseChunk.Fill(maxOf(next, 0), requested - maxOf(next, 0))
-        SparseWriter.write(BLOCK_SIZE, requested, chunks)
+        SparsePlan(BLOCK_SIZE, requested, chunks)
     }
 
     private const val MIN_STRIDE_BYTES = 8192L

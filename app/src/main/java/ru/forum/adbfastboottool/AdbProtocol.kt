@@ -51,8 +51,9 @@ class AdbProtocol private constructor(
         port: Int,
         onLog: (String) -> Unit,
         onProgress: (Int, String) -> Unit = { _, _ -> },
-        rawShellLogsDir: File
-    ) : this(null, null, keyStore, onLog, onProgress, null, rawShellLogsDir, AdbWirelessTransport(host, port))
+        rawShellLogsDir: File,
+        useRustHandshake: Boolean = false
+    ) : this(null, null, keyStore, onLog, onProgress, null, rawShellLogsDir, AdbWirelessTransport(host, port, useRustHandshake))
 
     // This is a *target-device* ADB shell path, not an Android host path.
     // Environment.getExternalStorageDirectory() would refer to the wrong phone.
@@ -314,16 +315,27 @@ class AdbProtocol private constructor(
 
     private fun connectWireless(transport: AdbWirelessTransport): Boolean = try {
         transport.connect()
-        sendMessageInternal(A_CNXN, LOCAL_ADB_VERSION, MAX_PAYLOAD, "host::NekoFlash\u0000".toByteArray(Charsets.UTF_8))
-        val stls = readHeaderDirect()
-        if (stls?.command != A_STLS || stls.arg0 != A_STLS_VERSION || stls.dataLength != 0) {
-            throw IOException("Expected Wireless debugging TLS upgrade on the connection port")
+        if (transport.useRustHandshake) {
+            check(RustCore.available) { "Rust JNI library is unavailable" }
+            val peer = IntArray(2)
+            val banner = RustCore.wirelessHandshake(
+                transport::readFully, { transport.write(it, EMPTY_PAYLOAD) }, { transport.upgradeToTls(adbKeyStore) }, peer
+            )
+            peerProtocolVersion = peer[0]
+            peerMaxPayloadSize = peer[1]
+            applyConnectionBanner(banner)
+        } else {
+            sendMessageInternal(A_CNXN, LOCAL_ADB_VERSION, MAX_PAYLOAD, "host::NekoFlash\u0000".toByteArray(Charsets.UTF_8))
+            val stls = readHeaderDirect()
+            if (stls?.command != A_STLS || stls.arg0 != A_STLS_VERSION || stls.dataLength != 0) {
+                throw IOException("Expected Wireless debugging TLS upgrade on the connection port")
+            }
+            sendMessageInternal(A_STLS, A_STLS_VERSION, 0, EMPTY_PAYLOAD)
+            transport.upgradeToTls(adbKeyStore)
+            val banner = readHeaderDirect()
+            if (banner?.command != A_CNXN) throw IOException("No ADB connection confirmation after TLS")
+            handleConnectionBanner(banner)
         }
-        sendMessageInternal(A_STLS, A_STLS_VERSION, 0, EMPTY_PAYLOAD)
-        transport.upgradeToTls(adbKeyStore)
-        val banner = readHeaderDirect()
-        if (banner?.command != A_CNXN) throw IOException("No ADB connection confirmation after TLS")
-        handleConnectionBanner(banner)
         transport.finishHandshake()
         wirelessReady = true
         onLog("=== ADB WIRELESS CONNECTION ESTABLISHED ===")
@@ -475,6 +487,10 @@ class AdbProtocol private constructor(
         peerMaxPayloadSize = AdbInteractiveInputChunkPolicy.maxWirePayload(header.arg1, MAX_PAYLOAD)
         val bannerBytes = readData(header.dataLength)
         if (isWireless && bannerBytes == null) throw IOException("Invalid ADB connection banner after TLS")
+        applyConnectionBanner(bannerBytes)
+    }
+
+    private fun applyConnectionBanner(bannerBytes: ByteArray?) {
         remoteBanner = bannerBytes?.toString(Charsets.UTF_8)?.trimEnd('\u0000').orEmpty()
         parseRemoteFeatures(remoteBanner)
         if (remoteBanner.isNotBlank()) onLog("ADB banner: $remoteBanner")

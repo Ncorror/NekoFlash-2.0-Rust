@@ -11,7 +11,7 @@ import android.os.PowerManager
  *
  * Storage access is optional for entering the app and direct SAF flows.
  * It is required only for workspace operations that directly access
- * /sdcard/Download/NekoFlash. Notifications/battery status are recommendations.
+ * /sdcard/Download/NekoFlash-Rust. Notifications/battery status are recommendations.
  */
 object PermissionGate {
 

@@ -3,59 +3,157 @@
 Baseline: [Ncorror/NekoFlash-2.0 @ f82484dd64fe](https://github.com/Ncorror/NekoFlash-2.0/tree/f82484dd64fe980137585ae613b6de0a0cc540ed).
 Independent repository: `Ncorror/NekoFlash-2.0-Rust`. Preserve Git history, authorship, Apache-2.0 license, third-party notices, and existing hardware behavior. Upstream push is disabled in the experimental clone.
 
-## Current layout (implemented)
+## Current architecture
 
-- `app/`: existing Android UI, services, JNI/C++ and tests; no bulk relocation or rewrite.
-- `rust/crates/adb/`: ADB checksum and version policy.
-- `rust/crates/fastboot/`: DATA reply, download bounds, value parsers and getvar inventory.
-- `rust/crates/core/`: facade exposing both protocol libraries to future platform adapters.
-- `.github/workflows/rust-core.yml`: independent Rust checks.
-- `docs/RUST_PORT.md`: single Rust migration journal.
-
-Dependency direction: Android adapter -> Rust core facade -> independent protocol crates. Protocol crates have no Android dependencies and no unsafe code. No third-party Rust dependencies yet. All existing Android functionality remains the reference implementation; the Rust path is not wired into it yet.
-
-## Planned modules (not empty placeholder crates)
-
-| Layer | Responsibility | Dependency rule |
+| Component | Implementation in the Rust fork | Installed Android path |
 |---|---|---|
-| Transport | USB and TCP byte IO, timeouts, disconnect, cancel | Never depends on ADB or Fastboot |
-| ADB | Framing, auth, dispatch, shell, SYNC, sideload, Wi-Fi pairing | Depends on transport contracts |
-| Fastboot | Wire state, inventory, current slot, flash, fetch | Depends on transport contracts |
-| Images | Sparse, boot/vbmeta, ext4/f2fs, archive streaming | Independent of transport and UI |
-| Operations | Flash queues, script engine, cancellation, progress, recovery | Uses protocols and images |
-| Android bridge | JNI, descriptor lifecycle, event mapping | Uses core; unsafe only at necessary FFI boundaries |
-| Android app | UI, SAF, Android USB permission, lifecycle, services, localization | Calls bridge; no protocol duplication after cutover |
+| Android application | Kotlin UI, service ownership, permission and SAF lifecycle | Separate application ID and public workspace. |
+| `transport` | TCP deadlines and shutdown, synchronous bulk I/O on duplicated USB descriptors | Rust diagnostic queries. Kotlin and the existing C++ URB queue own the established production transports. |
+| `fastboot` | FB01/TCP framing, getvar, inventory, observed slot targets, bounded download/flash transactions and streaming range fetch | Opt-in scalar getvar via OTG/TCP. The terminal tokenizer and the USB download/fetch DATA size parser use Rust. The established backend handles flashing, logical partitions and recovery. |
+| `adb` | CNXN/AUTH/STLS, single-service streams, shell, SYNC and sideload | Rust checksums and opt-in Wireless ADB negotiation. Android supplies the paired TLS socket, keys, dispatcher, file operations and sideload verdicts. |
+| `images` | Sparse v1 inspection, a bounded RAW/FILL writer and ext4 group geometry | Production sparse inspection via JNI. Rust computes ext4 group and inode table sizes. Kotlin builds the metadata and streams ext4/F2FS output to the staging file. |
+| `core` and `android` | Protocol facade and a static archive linked by NDK CMake into `libnekoflash_core.so` | Four Android ABIs. JNI borrows arrays synchronously and duplicates borrowed descriptors for native I/O. |
+| Operations | Kotlin serial binding, foreground admission, plan composition, script execution, confirmation, progress and recovery journal | Existing device and account operations stay available while native alternatives undergo parity testing. |
 
-Retain Android-owned USB permissions and SAF; do not assume direct access to /dev/bus/usb or filesystem paths. Define ownership and cancellation for transferred file descriptors; never close the Android-owned descriptor from Rust. Keep secrets out of logs. Preserve current-slot discovery and non-A/B handling: never synthesize partitions. Keep the original Kotlin engines available until equivalent Rust tests and hardware verification pass. Preserve Mi account/unlock flows, shell semantics and all current professional operations. Avoid premature generic abstractions and dependencies.
+The original checkout is kept separately. In the fork, relative file operations, the shell link, logs and scoped shares use `Download/NekoFlash-Rust`. The Kotlin namespace remains `ru.forum.adbfastboottool` and the debug application ID is `ru.forum.adbfastboottool.rust.dev`.
 
-## Status (starter v3)
+## Building and exercising the port
 
-- Four initial policy ports and Fastboot getvar inventory retained. ADB 24-byte framing and Fastboot reply decoding added, separate from transports.
-- 15 prior tests + 5 ADB header tests + 3 Fastboot response tests (23 total, written, not executed in preparation environment).
-- Rust compiler unavailable in preparation environment. Cargo.lock constructed for the dependency-free workspace; confirm using Cargo in CI/Termux.
-- Android source layout and namespace deliberately preserved; publication script assigns independent applicationId `.rust`, separate label and version, so debug `.rust.dev` does not replace original `.dev`. Existing release and manual signing jobs are guarded to the upstream repository. Shared external workspace paths and application-ID-dependent behavior still need review before hardware use. Android build and app ID-dependent tests still require verification.
-- Rust JNI integration and APK are not yet implemented. No claim of Rust-powered APK or hardware parity.
-- Repository has not been created by this package until publish.sh successfully runs.
+Run the host checks from `rust/`:
 
-## Next milestone
+```sh
+cargo fmt --all --check
+cargo clippy --locked --workspace --all-targets -- -D warnings
+cargo test --locked --workspace
+```
 
-1. Run workspace tests and clippy; compare inventory against original Kotlin behavior, including ordering/Unicode/numeric corner cases. Current Rust map is sorted rather than Kotlin insertion-ordered, and case normalization is ASCII; no UI consumer yet.
-2. Extend initial Fastboot wire and ADB framing into command/stream state machines; add recorded protocol fixtures, fragmented IO and cancellation tests.
-3. Implement transport abstraction and Android file descriptor adapter; keep legacy backend for A/B tests.
-4. Integrate a small JNI vertical slice (`getvar` and device discovery) into Android; then transfer, shell, SYNC and sideload.
-5. Move images, script engine, operation orchestration and diagnostics in tested slices. Keep platform-specific account/UI logic where appropriate; evaluate further Rust ports after feature parity.
-6. Compare USB/ADB-Wi-Fi hardware behavior, throughput, CPU, memory, APK size; validate non-A/B and A/B devices, format/wipe and recovery flows before releases.
+For Android, use the pinned SDK/NDK in `app/build.gradle`, JDK 17 and the project's filesystem-tool prerequisites. Install the Rust targets and build from the checkout root:
 
-## Publication recovery
+```sh
+rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
+./gradlew :app:assembleDebug :app:assembleDebugAndroidTest :app:testDebugUnitTest :app:lintDebug
+python3 tests/check_filesystem_apk.py app/build/outputs/apk/debug/app-debug.apk
+```
 
-The publisher stages a fresh clone in a temporary directory, preserves it on failure, and only moves a committed prepared checkout to the final path. A retry resumes a clean, recognized local starter commit and verifies the exact remote main. It never force-pushes or overwrites an unrelated repository. If repository creation succeeded but local origin setup failed, inspect the target before attaching it manually.
+The Android terminal supports a read-only Rust query for a connected OTG Fastboot device and for an explicitly selected Fastboot TCP peer. Supply a numeric IPv4 address or bracketed IPv6 address and the actual port.
 
-## Preparation verification
+```text
+fastboot --rust getvar product
+fastboot --rust -s tcp:192.0.2.10:5554 getvar current-slot
+```
 
-Local package verification passed: Bash syntax, Python syntax, TOML parsing, workspace/lock membership, CI YAML parsing, test declaration count, variant transformation and mocked GitHub publication with a local bare repository, repeated invocation, remote divergence rejection and unchanged upstream. The local publication simulation uses a small synthetic upstream fixture and a mocked `gh`; it is not a real GitHub publication or Android build. No Rust compiler was installed, and rustup download was unavailable (DNS failure). No Rust tests, Clippy, Android build or hardware tests are claimed to have passed. The original app continues using its Kotlin/C++ implementation until JNI migration. Review original external storage paths, Android permissions, app-ID-specific tests, and Rust-vs-Kotlin parsing corner cases before parallel hardware testing.
+After pairing in the Wi-Fi dialog, the following terminal command uses Rust to negotiate STLS on the displayed **connection** port. Android performs the TLS handshake using the enrolled host key. Subsequent shell and transfer commands use the same authenticated socket and dispatcher.
+
+```text
+adb --rust connect 192.0.2.10:37001
+```
+
+## Qualification still required
+
+- Compare Rust OTG reads on real bootloaders, read-only inventory on A/B and non-A/B devices, and disconnect during transfers. Each USB connection requires Android's permission and exclusive interface ownership.
+- Qualify the opt-in Rust STLS handshake on paired devices, connect the USB AUTH signer, and integrate Rust service streams with Android. Compare binary shell records, multi-file SYNC and recovery sideload against the installed Kotlin paths.
+- Qualify native DATA/flash, fetch, logical-partition operations, filesystem generation, script execution and cancellation against the existing Android operation review and recovery behavior before switching their backends.
+- Record device model, topology, transfer throughput, CPU, peak memory and outcomes for each hardware test. Test images, disposable partitions and explicit device authorization are prerequisites for destructive validation.
+
+## Historical checkpoints
+
+The starter preserved the upstream history, license, notices and Android engines while introducing three dependency-free Rust crates. Publication-tool and mock-repository verification from the preparation phase is recorded in the [starter journal](https://github.com/Ncorror/NekoFlash-2.0-Rust/blob/7741dc03da6d745749cae2bcae4d56cfe20181ac/docs/RUST_PORT.md).
 
 ## 2026-11-25 — initial publication and CI corrections
 
 - Published main `7741dc03da6d745749cae2bcae4d56cfe20181ac` to the private Rust repository. Termux compiled the workspace and passed 23/23 tests (8 ADB, 9 Fastboot, 5 inventory, 1 facade).
 - First GitHub CI failed: Android revision-14 and i18n guards expected the original application ID; Rust Clippy rejected two constant-sized chunk iterators. Updated the guards to require the independent `.rust` ID, and changed the ADB header codec to fixed-size array chunk iteration without relaxing validation or lint rules.
 - CI rerun, Android APK, external workspace separation, JNI integration and hardware parity remain unverified.
+
+## 2026-11-25 — fork isolation and build audit
+
+- At 3d2a085 the Rust workflow passed. The Android job passed the repository checks, JVM tests and lint; its emulator commands and evidence collectors still addressed the upstream debug application. The fork now runs instrumentation, fixture providers and run-as collection under ru.forum.adbfastboottool.rust.dev. The Kotlin package and runner class remain compatible.
+- The app, terminal link, imports, diagnostics, scoped file sharing and instrumentation use Download/NekoFlash-Rust. Existing public files stay in place. Private fallbacks remain per application ID. The fork's Termux checkout, publication defaults and maintenance scripts target the Rust repository. Keep the upstream checkout at f82484d for comparison with its push URL disabled.
+- In the Linux checkout, all 23 Rust tests, locked all-target Clippy, rustfmt, REV27 and its predecessor guards, localization, documentation, tester-kit, diagnostic ZIP, branch-cleanup and repository-security checks passed. Rust CI now enforces formatting.
+- Audit: Android already serializes Fastboot transactions and owns interface permissions, USB detach, SAF, and the cancellable USBFS URB queue. ADB has a single packet dispatcher and existing pairing/TLS and identity lifetimes. Sparse and filesystem tools have independent installed-APK checks. Preserve those boundaries and keep the existing transfer engines available during device qualification.
+
+## 2026-11-25 — Rust transport, Fastboot transactions, sparse and JNI
+
+- Added deadline-aware TCP, a socket shutdown handle, and synchronous USBDEVFS_BULK on a duplicate of an already claimed Android descriptor. Dropping the adapter closes its duplicate. The legacy queued USBFS sender still owns production Fastboot DATA transfers and cancellation.
+- ADB packet I/O handles fragmented reads, negotiated limits and checksums, USB transfer boundaries and explicit ZLPs. Fastboot v1 TCP handles the FB handshake and big-endian frame lengths. The session supports INFO/TEXT, getvar and bounded download/flash to an explicit partition; it requires two terminal acknowledgments and drops ambiguous sessions. These new session APIs are library paths pending physical-device qualification.
+- Added constant-memory sparse structure inspection and a bounded RAW/FILL writer for aligned raw input. Android's verified mkfs generators remain separately executable. Rust computes ADB payload checksums from Kotlin via a small JNI library; the Kotlin fallback remains available. CMake builds the Rust archive for each selected ABI. Install the standard Rust targets with `rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android` before running Gradle locally.
+- Host verification: 28 Rust tests passed including a real fragmented TCP loopback, DATA mismatch, rejected flash after malformed acknowledgements, USB descriptor ownership and sparse truncation. Formatting, locked all-target Clippy and static archive builds for all four Android targets passed.
+- Baseline Android run 45684640711 built both APKs. Upload returned “Artifact storage quota has been hit”. Emulator tests now execute against the APK on the build runner before uploads on both API 26 and 34. Publication still requires artifact quota. The installed-app suite now explicitly checks that the Rust JNI library loads and matches byte-wise checksum results. Signatures, release isolation and the existing filesystem and UI checks are retained.
+
+## 2026-11-25 — ADB services and Android sparse validation
+
+- Added USB CNXN/AUTH and Wireless CNXN/STLS connection state machines. Host signatures, public keys and TLS sockets are supplied by the platform. The wireless path rejects a plaintext CNXN on the TLS port. Service streams validate local/remote IDs, track WRTE/OKAY and CLSE, enforce deadlines and prevent reuse of an abandoned operation.
+- Added Shell v2 with binary stdout/stderr and explicit EXIT, legacy shell, streaming SYNC SEND/RECV, and recovery-driven Sideload. Sideload bounds block indices, accounts for retries once, and reports transfer completion separately from installation. Kotlin still supplies the installed app's authenticated device session, pairing UI, keystore, dispatcher, interactive shell, directory walks and recovery verdict.
+- JNI now inspects sparse files from a dedicated Android descriptor. Rust duplicates the descriptor, checks bounds before seeking over chunk payloads, and propagates Kotlin cancellation. Installed filesystem tests compare native inspection against the retained Kotlin implementation on ext4 and f2fs images.
+- 34 locked Rust tests and all-target Clippy passed. New traces include USB ZLP, early remote close with buffered EXIT, wrong stream ID, mandatory STLS, binary SYNC and duplicate/out-of-range sideload blocks. Built a four-ABI debug APK locally with NDK 27.2.12479018. Local mkfs tools/assets and their corresponding sources matched every digest from the upstream f82484d build, checked by the existing pinned builder.
+
+## 2026-11-26 — sparse output, tokenization and emulator capacity
+
+- The ext4 and F2FS formatters now stream their verified sparse chunk plans into the staging file. This removes the separate full-image body and result buffers from the Android format path. The public byte-array APIs and golden image tests use the same encoder. Sparse holes retain DONT_CARE semantics, fill runs retain their explicit values and cancellation is checked between raw writes.
+- Android Fastboot command tokenization now uses Rust with UTF-16 literals and unescaped argument values. Quoted empty arguments, OEM spelling, escaped spaces and unpaired surrogates are covered. The Kotlin parser remains the fallback.
+- Run 45688082255 at 6670d00 passed all 566 JVM tests, lint and the APK build. API 26 could not allocate its default 7.2 GiB userdata partition on the build runner; API 34 then ran out of disk during installation. The workflow now requests 2 GiB userdata, frees disposable build intermediates and removes the first AVD and system image before installing the second. Both emulator jobs still run the complete installed suite. The separate artifact-storage quota error was also present in this run.
+
+## 2026-11-26 — Android Fastboot queries and slot evidence
+
+- The Android terminal can issue opt-in scalar getvar queries over either claimed OTG bulk endpoints or Fastboot TCP. USB shares the existing transaction lock and operation admission. TCP has a single active diagnostic query and a five-second deadline across connect, handshake and reply. A transport error after a USB request invalidates the session. An explicit device FAIL completes the request without resending it.
+- Inventory iteration preserves the order of first observation, including CR-separated lines and Unicode names. Slot resolution uses the completed snapshot and concrete partition entries; missing or conflicting evidence prevents selection. Legacy unslotted and A/B fixtures are covered.
+- Shell v2 now drains stdout/stderr while CLOSE_STDIN is being acknowledged. Closing a broken TCP connection releases the socket even if an unused cancellation handle survives.
+- Local verification passed for Rust formatting, locked Clippy and 40 Rust tests, including fragmented TCP getvar and early-close shell. A JVM loaded the C++/Rust JNI library and exercised unsigned checksum, UTF-16 tokenization, sparse descriptor ownership and cancellation, and scoped getvar against a real loopback peer. Android built the debug and instrumentation APKs. All 566 JVM tests passed without skips and lint reported zero findings. The APK check verifies ELF ABI, 16 KiB alignment and exported Rust bridge entry points for every ABI. Physical device verification remains pending.
+- Run [45774333756](https://github.com/Ncorror/NekoFlash-2.0-Rust/actions/runs/45774333756) showed that both emulator images still require 7372.80 MiB free for userdata despite the requested size. Only 5392 MiB and 4899 MiB were available. CI now reclaims unused preinstalled SDKs on the disposable hosted runner before building. The artifact service also reported an account storage quota error.
+
+## 2026-11-26 — Wireless ADB through the Android TLS adapter
+
+- Added an explicit terminal connection path through the Rust CNXN/STLS engine. Handshake callbacks run synchronously on the owning Android I/O thread. The dispatcher starts only after TLS completes and Rust validates the device banner. Protocol or TLS failures close the session. Connection admission refuses to interrupt an active device operation.
+- Shared the existing four wireless scenarios between connection paths and now run them against the Rust bridge in installed Android tests. The suite covers pairing, shell, binary and empty-file SYNC pushes, bounded metadata probing, and two reboot disconnect orderings.
+- Host checks passed for formatting, Clippy and 41 Rust tests. A Linux JNI build passed all four wireless scenarios over real loopback TLS with Android's pairing library. The standard host JVM suite passed all 566 tests with zero skips, and lint reported zero findings. Android-specific file descriptor tests run on the installed app.
+
+## 2026-11-26 — ext4 group geometry
+
+- Ported 4 KiB ext4 group sizing, descriptor and inode tables, sparse-super backups and short-tail trimming. The formatter uses the Rust result via JNI and keeps the Kotlin implementation for fallback and detailed errors. Sparse serialization still stages the complete validated image before any device transfer.
+- Auditing the pinned e2fsprogs 1.47.0 source revealed an inode alignment error in the Kotlin implementation. Its mask cleared bit 3, while ext2fs_initialize clears the low three bits. The Rust implementation and the fork's fallback now agree with mke2fs. For 8200 blocks and 512-byte inodes, an independent dumpe2fs reported 8200 inodes per group and 1025 inode-table blocks.
+- Added exact-value regressions and an installed JNI comparison across tiny layouts, group boundaries, inode profiles, and the 32-bit block limit.
+- This revision passed rustfmt, locked all-target Clippy, 44 Rust tests and 567 Android JVM tests (zero failures or skips). Android lint reported zero findings, and both APKs built. The generated 8200-block ext4 image with project IDs and casefold passed all five e2fsck phases.
+- On the previous Android run both API 26 and API 34 passed all 35 installed tests and the filesystem evidence checks after disk reclamation. The remaining failed steps reported the GitHub Actions artifact-storage quota. [Run 45820898152](https://github.com/Ncorror/NekoFlash-2.0-Rust/actions/runs/45820898152)
+
+## 2026-11-26 — Android native library size
+
+- Enabled section garbage collection for the Rust JNI shared library. The stripped library shrank from 1,363,640 to 558,464 bytes on arm64, 921,108 to 362,584 on armv7, 1,376,776 to 570,680 on x86 and 1,379,400 to 576,328 on x86_64. All four APK libraries retained their six JNI functions, 16 KiB ELF load alignment and system-library dependencies. Both debug APKs built, JVM tests and lint passed.
+- A local Linux x86_64/JDK 17 microbenchmark exercised the same Android ADB checksum entry point with the JNI library enabled and with the Kotlin fallback. With warmed 64 KiB arrays it measured 8.75 and 1.21 GiB/s respectively (median of seven 128 MiB runs). The resulting sums matched. Device transport throughput still requires hardware measurements.
+
+## 2026-11-26 — scoped Fastboot scalar replies
+
+- A direct OKAY preserves colons inside an unlabelled value, including a MAC-style identifier. For INFO followed by an empty OKAY, Rust gives priority to the exact requested variable, including its partition suffix. A later line for another partition cannot replace the answer. Unlabelled single-line replies and the existing underscore spelling remain supported.
+- A fragmented loopback peer now returns different sizes for boot_a and boot_b in the same response. The Android JNI query returned only the requested size. Local verification passed 45 locked Rust tests, strict Clippy, formatting, 567 JVM tests without skips, Android lint and both APK builds.
+
+## 2026-11-27 — Wireless ADB pairing on Android 8
+
+- Run [45868985288](https://github.com/Ncorror/NekoFlash-2.0-Rust/actions/runs/45868985288) passed 40 installed tests on API 34 and 39 on API 26. The failing wireless pairing test traced a NoSuchFieldError to spake2-kt v1.0.2. The old APK contains two reads of the JDK 9 field BigInteger.TWO, one in ScalarOps class initialization and one in scalarMul8. Android 8 lacks this field.
+- Android packaging now substitutes BigInteger.valueOf(2L) for both reads in that dependency class. The pinned pairing implementation, host credentials, STLS checks and full installed test suite are preserved. Third-party notices describe the change. The Gradle wrapper can now be executed directly from a fresh checkout as documented.
+
+- On c9fab4a, 40/40 installed tests and the filesystem checks passed on both Android 8 and 14. The Java group order and all three scalar operations matched upstream on 1,024 deterministic inputs. Release R8 compilation preserved all six JNI names at this revision. The runner created and verified the debug tester kit before GitHub refused the uploads because of the artifact storage quota. [Android CI](https://github.com/Ncorror/NekoFlash-2.0-Rust/actions/runs/45909163090)
+
+## 2026-11-27 — Fastboot DATA on Android
+
+- Android now reads the four status bytes directly from the USB packet. Display trimming cannot turn a malformed header into OKAY or DATA. The existing USB path accepts terminal NUL padding from bootloaders. An embedded NUL or extra whitespace in the advertised size fails validation before Android sends image bytes or accepts a fetch length.
+- Rust parses the eight ASCII hex digits for both Android transfer directions through JNI and for the native download engine. The Kotlin fallback retains its checked parser. Download requires the requested size, and fetch additionally requires a positive length.
+- Local verification passed 46 Rust tests, formatting and strict Clippy. The debug app and instrumentation APKs built. All 568 JVM tests passed without skips, lint reported zero findings, and the packaged JNI exports and 16 KiB ELF alignment passed for all four ABIs. The installed suite now includes a direct test of the native parser and both callers.
+- [Run 45974758418](https://github.com/Ncorror/NekoFlash-2.0-Rust/actions/runs/45974758418) stopped at the REV13 source-integrity check. Reviewed the protocol diff and pinned the full USB protocol and its extracted decoder. REV27 and the companion guards passed. Independently changing one byte in either protected file made the integrity check fail. A host JVM with JNI checks enabled tested every UTF-16 code unit at every position of the DATA length field against the native parser.
+- On c9b5554, both Android 8 and Android 14 passed 41/41 installed tests. Each emulator produced four ext4/F2FS image profiles. The partitions reassembled with matching SHA-256 and every fsck exited 0. GitHub verified the tester kit and declined all six artifact uploads because the account storage quota was exhausted. [Android run 45975233317](https://github.com/Ncorror/NekoFlash-2.0-Rust/actions/runs/45975233317) · [Rust CI](https://github.com/Ncorror/NekoFlash-2.0-Rust/actions/runs/45975233561)
+
+## 2026-11-27 — Fastboot range fetch
+
+- Added `Session::fetch_range` for a caller-selected partition and byte range over USB bulk or Fastboot TCP. It negotiates an exact DATA size, streams binary data to a writer in blocks of at most 16 KiB, and requires final OKAY. Framed TCP reads support payloads larger than the buffer and reject a frame larger than the remaining range before writing it.
+- The Rust workspace includes a runnable TCP client for hardware qualification. It syncs a sibling temporary file and publishes it without replacing an existing output after confirmation. A failed transfer removes the staging file. The installed Android terminal continues to use its established USB fetch path.
+- From `rust/`, use an explicit numeric endpoint, concrete partition, new output path, byte offset and size. Decimal and hexadecimal sizes are supported.
+
+```sh
+cargo run --locked -p nekoflash-fastboot --example fetch_range -- 192.0.2.10:5554 boot_a boot-prefix.img 0 0x1000
+```
+
+- The standard Rust suite passed 51 tests plus strict formatting and Clippy. New cases cover offsets above 4 GiB, fragmented large frames, size mismatches, explicit failures, cancellation, write errors, session reuse, and malformed frame lengths. Android SDK Fastboot 37.0.3 and the Rust client retrieved the same 70,001 bytes on loopback. A lost final acknowledgment cannot publish a file, and a competing destination survives. Rust CI now runs the SDK comparison and publication checks.
+
+## 2026-11-27 — Android range client qualification
+
+- Ncorror shortened artifact retention and corrected the terminal rotation test to dismiss the IME through the application’s Back path. The run at 1743bf7 passed 568 JVM tests, lint, 41/41 installed tests on both API 26 and 34, plus all eight filesystem profiles. The upload and tester-kit jobs both succeeded. The APK in the published debug bundle and the APK in the tester kit matched SHA-256 `7a68bca976dec999505948e9acbf8171d62d0f548ba9f7f476698accad0da755`. [Android build and artifacts](https://github.com/Ncorror/NekoFlash-2.0-Rust/actions/runs/46005072645)
+- Cross-built the range client for the four Android ABIs with NDK r27c, API 26 and 16 KiB load alignment. The ARM64 binary under QEMU with Android 8’s Bionic runtime passed the SDK fetch comparison, final-status failures and destination-collision tests. This smoke test used a Linux host and a loopback peer.
+- The Android workflow now cross-builds the x86_64 executable once and runs it inside both existing emulators. Each guest fetches 70,001 binary bytes from the host and compares its file byte-for-byte. A device FAIL and a disconnect before OKAY must each leave the destination directory free of partial files. The result is included in the existing per-API evidence archive. [Current PR checks](https://github.com/Ncorror/NekoFlash-2.0-Rust/pull/1/checks)

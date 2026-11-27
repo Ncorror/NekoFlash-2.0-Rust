@@ -1,5 +1,6 @@
 package ru.forum.adbfastboottool
 
+import android.os.ParcelFileDescriptor
 import java.io.Closeable
 import java.io.File
 import java.io.InputStream
@@ -82,7 +83,15 @@ internal object AndroidSparseImage {
         override fun close() = output.close()
     }
 
-    fun inspect(file: File, checkCancelled: () -> Unit = {}): Info = RandomAccessFile(file, "r").use { input ->
+    fun inspect(file: File, checkCancelled: () -> Unit = {}): Info {
+        if (!RustCore.available) return inspectKotlin(file, checkCancelled)
+        return ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { descriptor ->
+            val fields = RustCore.sparseInfo(descriptor.fd, Runnable(checkCancelled))
+            Info(fields[0].toInt(), fields[1], fields[2])
+        }
+    }
+
+    internal fun inspectKotlin(file: File, checkCancelled: () -> Unit = {}): Info = RandomAccessFile(file, "r").use { input ->
         fun u32(): Long = Integer.reverseBytes(input.readInt()).toLong() and U32
         fun u16(): Int = java.lang.Short.reverseBytes(input.readShort()).toInt() and 0xffff
         require(input.length() >= 28 && u32() == MAGIC && u16() == 1) { "Invalid Android sparse header" }

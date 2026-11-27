@@ -1,6 +1,6 @@
 #!/data/data/com.termux/files/usr/bin/bash
 set -euo pipefail
-TARGET="Ncorror/NekoFlash-2.0"
+TARGET="Ncorror/NekoFlash-2.0-Rust"
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$DIR"
 command -v git >/dev/null || { echo 'Missing git: pkg install git'; exit 1; }
@@ -42,7 +42,7 @@ if gh repo view "$TARGET" >/dev/null 2>&1; then
   echo 'Pushing main without force (will stop on conflicts)...'
   git push --set-upstream origin main
 else
-  echo "Creating PUBLIC GitHub repository $TARGET and pushing main..."
-  gh repo create "$TARGET" --public --description 'NekoFlash 2.0 — Android development checkpoint REV5' --source=. --remote=origin --push
+  echo "Creating PRIVATE GitHub repository $TARGET and pushing main..."
+  gh repo create "$TARGET" --private --description 'NekoFlash 2.0 Rust' --source=. --remote=origin --push
 fi
 echo "PUBLISHED: https://github.com/$TARGET"

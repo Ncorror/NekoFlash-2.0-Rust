@@ -194,10 +194,10 @@ class LocalShellTest {
 
     @Test fun privateHomeLinksToTheSharedDownloadFolder() = withWorkspace { root ->
         val privateHome = File(root, "private-home")
-        val publicDownload = File(root, "public/Download/NekoFlash")
+        val publicDownload = File(root, "public/Download/NekoFlash-Rust")
         val shell = LocalShell({ Long.MAX_VALUE }, initialHome = privateHome)
         shell.configureHome(privateHome, publicDownload)
-        val alias = File(privateHome, "Download/NekoFlash")
+        val alias = File(privateHome, "Download/NekoFlash-Rust")
         assertTrue(privateHome.isDirectory)
         assertTrue(publicDownload.isDirectory)
         assertTrue(Files.isSymbolicLink(alias.toPath()))
@@ -281,7 +281,7 @@ class LocalShellTest {
 
     @Test fun bashCommandSubstitutionRunsTheResolvedScriptFromTheCurrentDirectory() = withWorkspace { root ->
         val home = File(root, "HOME").apply { mkdirs() }
-        val workspaceDirectory = File(home, "Download/NekoFlash").apply { mkdirs() }
+        val workspaceDirectory = File(home, "Download/NekoFlash-Rust").apply { mkdirs() }
         File(workspaceDirectory, "nekoshrc.sh").writeText("printf 'COMMAND_SUBSTITUTION_OK\\n'\n")
         val binDirectory = File(home, "bin").apply { mkdirs() }
         File(binDirectory, "ls").apply {
@@ -297,7 +297,7 @@ class LocalShellTest {
         val workspace: suspend () -> File? = { home }
         assertTrue(shell.requiresWorkspace("bash $(ls)"))
         assertNull(shell.quickOutput("bash $(ls)"))
-        assertEquals(0, shell.execute("cd Download/NekoFlash", workspace) { false }?.exitCode)
+        assertEquals(0, shell.execute("cd Download/NekoFlash-Rust", workspace) { false }?.exitCode)
 
         val output = mutableListOf<String>()
         val result = requireNotNull(shell.execute(

@@ -54,7 +54,7 @@ internal class Ext4Geometry private constructor(
          * `PRS()` и `ext2fs_initialize()`. Отказ — словами `mke2fs`, чтобы
          * отчёт совпадал с настольным клиентом.
          */
-        fun of(blocks: Long, profile: Ext4Profile): Ext4Geometry {
+        fun of(blocks: Long, profile: Ext4Profile, useRust: Boolean = RustCore.available): Ext4Geometry {
             require(blocks > 0) { "invalid blocks '0' on device" }
             require(blocks <= MAX_32) {
                 "Size of device (0x${blocks.toString(HEX)} blocks) too big to be expressed in 32 bits " +
@@ -67,6 +67,15 @@ internal class Ext4Geometry private constructor(
                     "with $blocks blocks, specify higher inode_ratio (-i) or lower inode count (-N)."
             }
             val reserved = (profile.reservedRatio * blocks / PERCENT).toLong()
+            if (useRust) {
+                RustCore.ext4Geometry(blocks, reserved, inodeCount, profile.inodeSize)?.let { g ->
+                    return Ext4Geometry(
+                        blocks, g[0], g[1], g[2], g[3].toInt(), g[4].toInt(), profile.inodeSize,
+                        g[5].toInt(), g[6].toInt()
+                    )
+                }
+            }
+            // The Kotlin path also provides the established mkfs diagnostic on a rejected layout.
             return initialize(blocks, reserved, inodeCount, profile.inodeSize)
         }
 
@@ -94,7 +103,7 @@ internal class Ext4Geometry private constructor(
                 var inodeBlocks: Long
                 while (true) {
                     inodeBlocks = divCeil(ipg * inodeSize, BLOCK_SIZE.toLong())
-                    inodesPerGroup = maxOf(inodeBlocks * BLOCK_SIZE / inodeSize, BLOCK_STEP.toLong()) and BLOCK_STEP.inv().toLong()
+                    inodesPerGroup = maxOf(inodeBlocks * BLOCK_SIZE / inodeSize, BLOCK_STEP.toLong()) and (BLOCK_STEP - 1L).inv()
                     inodeBlocks = divCeil(inodesPerGroup * inodeSize, BLOCK_SIZE.toLong())
                     if (inodesPerGroup * groups <= MAX_32) break
                     ipg--

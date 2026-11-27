@@ -37,7 +37,9 @@ class AdbWirelessClient(private val keyStore: AdbKeyStore) {
 }
 
 /** One ADB packet byte stream. Only CNXN and STLS are sent before upgrading to TLS. */
-internal class AdbWirelessTransport(private val host: String, private val port: Int) : Closeable {
+internal class AdbWirelessTransport(
+    private val host: String, private val port: Int, val useRustHandshake: Boolean
+) : Closeable {
     private val socket = Socket()
     private lateinit var input: DataInputStream
     private lateinit var output: OutputStream

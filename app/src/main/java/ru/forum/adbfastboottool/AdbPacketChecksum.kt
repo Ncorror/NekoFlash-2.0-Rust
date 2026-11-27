@@ -13,7 +13,7 @@ object AdbPacketChecksum {
     const val VERSION_SKIP_CHECKSUM: Int = 0x01000001
 
     fun compute(payload: ByteArray): Int =
-        payload.fold(0) { sum, byte -> sum + (byte.toInt() and 0xFF) }
+        if (RustCore.available) RustCore.checksum(payload) else payload.fold(0) { sum, byte -> sum + (byte.toInt() and 0xFF) }
 
     fun checksumRequired(localVersion: Int, peerVersion: Int): Boolean =
         minOf(localVersion, peerVersion) < VERSION_SKIP_CHECKSUM
