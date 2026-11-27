@@ -22,3 +22,4 @@ python3 -c "from pathlib import Path; p=Path('android-source-ui'); assert all((p
 python3 "$project/tests/collect_android_ui.py" --output android-interface-ui
 python3 -c "from pathlib import Path; s=Path('android-mkfs-tests.txt').read_text(); assert 'OK (41 tests)' in s and 'FAILURES' not in s, s"
 python3 "$project/tests/verify_android_filesystems.py" --output android-mkfs-images
+python3 "$project/rust/crates/fastboot/tests/emulator_fetch.py" "$project/build/android-tools/fetch_range" | tee android-fastboot-fetch.txt

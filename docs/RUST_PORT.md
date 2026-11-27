@@ -151,3 +151,9 @@ cargo run --locked -p nekoflash-fastboot --example fetch_range -- 192.0.2.10:555
 ```
 
 - The standard Rust suite passed 51 tests plus strict formatting and Clippy. New cases cover offsets above 4 GiB, fragmented large frames, size mismatches, explicit failures, cancellation, write errors, session reuse, and malformed frame lengths. Android SDK Fastboot 37.0.3 and the Rust client retrieved the same 70,001 bytes on loopback. A lost final acknowledgment cannot publish a file, and a competing destination survives. Rust CI now runs the SDK comparison and publication checks.
+
+## 2026-11-27 — Android range client qualification
+
+- Ncorror shortened artifact retention and corrected the terminal rotation test to dismiss the IME through the application’s Back path. The run at 1743bf7 passed 568 JVM tests, lint, 41/41 installed tests on both API 26 and 34, plus all eight filesystem profiles. The upload and tester-kit jobs both succeeded. The APK in the published debug bundle and the APK in the tester kit matched SHA-256 `7a68bca976dec999505948e9acbf8171d62d0f548ba9f7f476698accad0da755`. [Android build and artifacts](https://github.com/Ncorror/NekoFlash-2.0-Rust/actions/runs/46005072645)
+- Cross-built the range client for the four Android ABIs with NDK r27c, API 26 and 16 KiB load alignment. The ARM64 binary under QEMU with Android 8’s Bionic runtime passed the SDK fetch comparison, final-status failures and destination-collision tests. This smoke test used a Linux host and a loopback peer.
+- The Android workflow now cross-builds the x86_64 executable once and runs it inside both existing emulators. Each guest fetches 70,001 binary bytes from the host and compares its file byte-for-byte. A device FAIL and a disconnect before OKAY must each leave the destination directory free of partial files. The result is included in the existing per-API evidence archive. [Current PR checks](https://github.com/Ncorror/NekoFlash-2.0-Rust/pull/1/checks)

@@ -121,6 +121,15 @@ jobs:
             --warning-mode all \
             --console=plain 2>&1 | tee debug_build_log.txt
 
+      - name: Build Fastboot range client for the Android emulators
+        run: |
+          export CARGO_TARGET_X86_64_LINUX_ANDROID_LINKER="$ANDROID_HOME/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android26-clang"
+          export RUSTFLAGS="-C link-arg=-Wl,-z,max-page-size=16384"
+          cargo build --manifest-path rust/Cargo.toml --locked --release --target x86_64-linux-android \
+            --target-dir "$RUNNER_TEMP/nekoflash-range-build" -p nekoflash-fastboot --example fetch_range
+          install -Dm755 "$RUNNER_TEMP/nekoflash-range-build/x86_64-linux-android/release/examples/fetch_range" build/android-tools/fetch_range
+          rm -rf "$RUNNER_TEMP/nekoflash-range-build"
+
       - name: Verify APK filesystem executables and build instrumentation APK
         id: apks
         run: |
