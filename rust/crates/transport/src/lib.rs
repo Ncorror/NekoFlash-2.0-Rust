@@ -18,6 +18,21 @@ pub fn remaining(deadline: Instant) -> io::Result<Duration> {
 pub trait Packets {
     fn send(&mut self, bytes: &[u8], deadline: Instant) -> io::Result<()>;
     fn receive(&mut self, buffer: &mut [u8], deadline: Instant) -> io::Result<usize>;
+
+    /// Read part of an announced binary payload. Framed transports may have to
+    /// split a data frame across reads while keeping status messages atomic.
+    fn receive_data(
+        &mut self,
+        buffer: &mut [u8],
+        remaining_bytes: u64,
+        deadline: Instant,
+    ) -> io::Result<usize> {
+        let capacity = remaining_bytes.min(buffer.len() as u64) as usize;
+        if capacity == 0 {
+            return Ok(0);
+        }
+        self.receive(&mut buffer[..capacity], deadline)
+    }
 }
 
 pub struct Tcp(Arc<TcpStream>);

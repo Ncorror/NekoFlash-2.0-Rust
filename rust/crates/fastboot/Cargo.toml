@@ -7,3 +7,6 @@ publish.workspace = true
 
 [dependencies]
 nekoflash-transport = { path = "../transport" }
+
+[dev-dependencies]
+tempfile = { version = "3", default-features = false }

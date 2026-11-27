@@ -95,4 +95,6 @@ These references informed Android-to-Android USB workflows, ADB/Fastboot behavio
 
 ## Rust Android core
 
-The locked Rust workspace uses nix, libc, bitflags, cfg-if and cfg_aliases. Their MIT notices are included in the APK at `assets/rust/THIRD-PARTY-LICENSES.txt`. The Fastboot TCP framing follows the [AOSP Fastboot v1 specification](https://android.googlesource.com/platform/system/core/+/refs/heads/main/fastboot/README.md). USB bulk request layout follows the Linux usbdevice_fs userspace interface.
+The Android Rust archive uses nix, libc, bitflags, cfg-if and cfg_aliases. Their MIT notices are included in the APK at `assets/rust/THIRD-PARTY-LICENSES.txt`. The Fastboot TCP framing follows the [AOSP Fastboot v1 specification](https://android.googlesource.com/platform/system/core/+/refs/heads/main/fastboot/README.md). USB bulk request layout follows the Linux usbdevice_fs userspace interface.
+
+The host-side Fastboot range-fetch example uses the development dependency `tempfile` 3.27.0 (MIT or Apache-2.0) for staging and no-clobber publication. [tempfile licenses](https://github.com/Stebalien/tempfile)

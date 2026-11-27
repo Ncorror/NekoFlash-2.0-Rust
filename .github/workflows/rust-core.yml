@@ -19,3 +19,8 @@ jobs:
       - run: cargo +stable fmt --all --check
       - run: cargo +stable clippy --locked --workspace --all-targets -- -D warnings
       - run: cargo +stable test --workspace --locked
+      - name: Check partition fetch against Android SDK Fastboot
+        run: |
+          cargo +stable build --locked -p nekoflash-fastboot --example fetch_range
+          "$ANDROID_HOME/platform-tools/fastboot" --version
+          python3 crates/fastboot/tests/sdk_fetch.py "$ANDROID_HOME/platform-tools/fastboot" target/debug/examples/fetch_range

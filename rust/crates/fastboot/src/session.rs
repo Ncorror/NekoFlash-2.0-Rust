@@ -1,8 +1,8 @@
 //! Fastboot v1 transactions. One owner sends one command at a time. A broken
 //! transaction consumes the transport, including on cancellation or a short file.
-use crate::{validate_data_reply, validate_download, wire, DataReply};
+use crate::{parse_data_size, validate_data_reply, validate_download, wire, DataReply};
 use nekoflash_transport::{remaining, Packets, Tcp};
-use std::io::{self, Read};
+use std::io::{self, Read, Write};
 use std::time::Instant;
 
 fn invalid(msg: &'static str) -> io::Error {
@@ -10,7 +10,10 @@ fn invalid(msg: &'static str) -> io::Error {
 }
 
 /// Wire format specified in AOSP fastboot/README.md, TCP Protocol v1.
-pub struct TcpPackets(Tcp);
+pub struct TcpPackets {
+    tcp: Tcp,
+    data_left_in_frame: u64,
+}
 
 impl TcpPackets {
     pub fn handshake(mut tcp: Tcp, deadline: Instant) -> io::Result<Self> {
@@ -20,24 +23,59 @@ impl TcpPackets {
         if &peer[..2] != b"FB" || !peer[2..].iter().all(u8::is_ascii_digit) || &peer[2..] == b"00" {
             return Err(invalid("unsupported Fastboot TCP handshake"));
         }
-        Ok(Self(tcp))
+        Ok(Self {
+            tcp,
+            data_left_in_frame: 0,
+        })
+    }
+
+    fn frame_length(&mut self, max: u64, deadline: Instant) -> io::Result<u64> {
+        let mut length = [0; 8];
+        self.tcp.read_exact(&mut length, deadline)?;
+        let n = u64::from_be_bytes(length);
+        if n == 0 || n > max {
+            return Err(invalid("invalid Fastboot TCP frame length"));
+        }
+        Ok(n)
     }
 }
 impl Packets for TcpPackets {
     fn send(&mut self, bytes: &[u8], deadline: Instant) -> io::Result<()> {
-        self.0
+        if self.data_left_in_frame != 0 {
+            return Err(invalid("unconsumed Fastboot TCP data"));
+        }
+        self.tcp
             .write_all(&(bytes.len() as u64).to_be_bytes(), deadline)?;
-        self.0.write_all(bytes, deadline)
+        self.tcp.write_all(bytes, deadline)
     }
     fn receive(&mut self, buf: &mut [u8], deadline: Instant) -> io::Result<usize> {
-        let mut length = [0; 8];
-        self.0.read_exact(&mut length, deadline)?;
-        let n = u64::from_be_bytes(length);
-        if n == 0 || n > buf.len() as u64 {
-            return Err(invalid("invalid Fastboot TCP response length"));
+        if self.data_left_in_frame != 0 {
+            return Err(invalid("unconsumed Fastboot TCP data"));
         }
-        self.0.read_exact(&mut buf[..n as usize], deadline)?;
-        Ok(n as usize)
+        let n = self.frame_length(buf.len() as u64, deadline)? as usize;
+        self.tcp.read_exact(&mut buf[..n], deadline)?;
+        Ok(n)
+    }
+
+    fn receive_data(
+        &mut self,
+        buf: &mut [u8],
+        remaining_bytes: u64,
+        deadline: Instant,
+    ) -> io::Result<usize> {
+        if buf.is_empty() || remaining_bytes == 0 {
+            return Ok(0);
+        }
+        if self.data_left_in_frame == 0 {
+            self.data_left_in_frame = self.frame_length(remaining_bytes, deadline)?;
+        }
+        if self.data_left_in_frame > remaining_bytes {
+            return Err(invalid("invalid Fastboot TCP data read"));
+        }
+        let n = self.data_left_in_frame.min(buf.len() as u64) as usize;
+        self.tcp.read_exact(&mut buf[..n], deadline)?;
+        self.data_left_in_frame -= n as u64;
+        Ok(n)
     }
 }
 
@@ -69,6 +107,24 @@ pub enum Error {
     Transport(io::Error),
     Device(String),
 }
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Transport(error) => write!(f, "{error}"),
+            Self::Device(reason) => write!(f, "Fastboot FAIL: {reason}"),
+        }
+    }
+}
+
+impl std::error::Error for Error {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Transport(error) => Some(error),
+            Self::Device(_) => None,
+        }
+    }
+}
+
 impl From<io::Error> for Error {
     fn from(e: io::Error) -> Self {
         Self::Transport(e)
@@ -158,6 +214,52 @@ impl<T: Packets> Session<T> {
                     .unwrap_or(&r.payload)
                     .to_owned()
             })
+        })
+    }
+
+    /// Fetch an exact range from an explicitly resolved partition. Use a staging
+    /// writer: bytes already written must be discarded if the final status fails.
+    pub fn fetch_range(
+        &mut self,
+        partition: &str,
+        offset: u64,
+        size: u32,
+        output: &mut impl Write,
+        deadline: Instant,
+        mut progress: impl FnMut(u32) -> io::Result<()>,
+    ) -> Result<(), Error> {
+        check_name(partition, false)?;
+        if size == 0 || offset > i64::MAX as u64 - u64::from(size) {
+            return Err(io::Error::from(io::ErrorKind::InvalidInput).into());
+        }
+        let cmd = format!("fetch:{partition}:0x{offset:08x}:0x{size:08x}");
+        if cmd.len() > 64 {
+            return Err(io::Error::from(io::ErrorKind::InvalidInput).into());
+        }
+        progress(0)?;
+        self.transaction(|wire| {
+            command(wire, &cmd, deadline)?;
+            let header = reply(wire, deadline, |_| {})?;
+            if header.kind != "DATA" || parse_data_size(header.payload.as_bytes()) != Some(size) {
+                return Err(invalid("device did not announce the requested fetch range").into());
+            }
+            let mut buf = vec![0u8; (size as usize).min(16 * 1024)];
+            let mut received = 0;
+            while received < size {
+                remaining(deadline)?;
+                let left = size - received;
+                let n = wire.receive_data(&mut buf, u64::from(left), deadline)?;
+                if n == 0 || n > buf.len() || n > left as usize {
+                    return Err(invalid("invalid Fastboot data read length").into());
+                }
+                output.write_all(&buf[..n])?;
+                received += n as u32;
+                progress(received)?;
+            }
+            if reply(wire, deadline, |_| {})?.kind != "OKAY" {
+                return Err(invalid("fetch not confirmed").into());
+            }
+            Ok(())
         })
     }
 
