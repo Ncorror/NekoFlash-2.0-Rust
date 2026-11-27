@@ -27,7 +27,7 @@ with zipfile.ZipFile(args.apk) as apk, tempfile.TemporaryDirectory() as temp:
         assert header[:6] == b'\x7fELF' + bytes([elf_class, 1])
         assert struct.unpack_from('<HH', header, 16) == (3, machine)
         symbols = subprocess.check_output(['readelf', '-Ws', str(core)], text=True)
-        for method in ('checksum', 'sparseInfo', 'tokenize', 'queryVariable', 'wirelessHandshake', 'ext4Geometry'):
+        for method in ('checksum', 'sparseInfo', 'tokenize', 'queryVariable', 'wirelessHandshake', 'ext4Geometry', 'fastbootDataSize'):
             assert f'Java_ru_forum_adbfastboottool_RustCore_{method}' in symbols, (abi, method)
         segments = subprocess.check_output(['readelf', '-Wl', str(core)], text=True)
         loads = [line for line in segments.splitlines() if line.strip().startswith('LOAD ')]

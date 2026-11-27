@@ -36,5 +36,7 @@ internal object RustCore {
 
     external fun sparseInfo(fd: Int, checkCancelled: Runnable): LongArray
 
+    external fun fastbootDataSize(reply: String): Long
+
     external fun checksum(payload: ByteArray): Int
 }

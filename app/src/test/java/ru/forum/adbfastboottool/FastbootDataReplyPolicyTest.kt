@@ -46,4 +46,25 @@ class FastbootDataReplyPolicyTest {
             FastbootDataReplyPolicy.validate("00000000", 1L)
         )
     }
+
+    @Test fun decodesUsbControlFieldsBeforeFormattingTheLog() {
+        fun packet(text: String): FastbootPacket {
+            val bytes = text.toByteArray(Charsets.US_ASCII)
+            return FastbootPacket.decode(bytes + byteArrayOf(65), bytes.size)
+        }
+        for (header in listOf("D\u0000ATA", "O\u0000KAY", " OKAY", "\u0000OKAY")) {
+            assertTrue(packet(header + "00000010").type !in setOf("DATA", "OKAY"))
+        }
+        for (body in listOf("0000\u00000010", " 00000010", "00000010 ", "00000010\u0000x")) {
+            val reply = packet("DATA$body")
+            assertTrue(FastbootDataReplyPolicy.validate(reply.payload, 16) is FastbootDataReplyPolicy.Verdict.Invalid)
+            assertEquals(null, FastbootFetchPolicy.dataSize(reply.payload, 16))
+        }
+        val padded = packet("DATA00000010\u0000\u0000")
+        assertEquals(FastbootDataReplyPolicy.Verdict.Accepted(16), FastbootDataReplyPolicy.validate(padded.payload, 16))
+        assertEquals(16L, FastbootFetchPolicy.dataSize(padded.payload, 16))
+        assertEquals("model", packet("INFO model \u0000").payload)
+        assertEquals("UNKNOWN", packet("OK").type)
+    }
+
 }

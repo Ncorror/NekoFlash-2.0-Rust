@@ -16,6 +16,17 @@ Java_ru_forum_adbfastboottool_RustCore_checksum(JNIEnv* env, jobject, jbyteArray
     return static_cast<jint>(sum);
 }
 
+extern "C" int64_t nekoflash_fastboot_data_size(const uint8_t* bytes, size_t length);
+
+extern "C" JNIEXPORT jlong JNICALL
+Java_ru_forum_adbfastboottool_RustCore_fastbootDataSize(JNIEnv* env, jobject, jstring reply) {
+    // Eight ASCII digits occupy eight UTF-16 units and eight modified UTF-8 bytes.
+    if (env->GetStringLength(reply) != 8 || env->GetStringUTFLength(reply) != 8) return -1;
+    char digits[9] = {};
+    env->GetStringUTFRegion(reply, 0, 8, digits);
+    return nekoflash_fastboot_data_size(reinterpret_cast<const uint8_t*>(digits), 8);
+}
+
 struct SparseInfo { uint32_t block_size, blocks, chunks; };
 struct CheckCancelled { JNIEnv* env; jobject check; jmethodID run; };
 extern "C" int32_t nekoflash_sparse_info(int32_t, void*, bool (*)(void*), SparseInfo*);

@@ -13,6 +13,18 @@ pub unsafe extern "C" fn nekoflash_adb_checksum(data: *const u8, length: usize) 
     adb::checksum(unsafe { std::slice::from_raw_parts(data, length) })
 }
 
+/// # Safety
+/// `bytes` must point to `length` readable bytes in the borrowed JNI string.
+#[no_mangle]
+pub unsafe extern "C" fn nekoflash_fastboot_data_size(bytes: *const u8, length: usize) -> i64 {
+    if length != 8 || bytes.is_null() {
+        return -1;
+    }
+    // SAFETY: JNI holds the string until this synchronous call returns.
+    let digits = unsafe { std::slice::from_raw_parts(bytes, length) };
+    nekoflash_core::fastboot::parse_data_size(digits).map_or(-1, i64::from)
+}
+
 #[cfg(unix)]
 #[repr(C)]
 pub struct SparseInfo {

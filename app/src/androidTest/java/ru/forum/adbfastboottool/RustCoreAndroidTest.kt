@@ -24,6 +24,22 @@ class RustCoreAndroidTest {
         }
     }
 
+    @Test fun nativeDataSizeGuardsDownloadAndFetch() {
+        assertTrue(RustCore.available)
+        for ((reply, expected) in listOf("00000000" to 0L, "fFfFfFfF" to 0xffff_ffffL, "0000001A" to 26L)) {
+            assertEquals(expected, RustCore.fastbootDataSize(reply))
+            assertEquals(FastbootDataReplyPolicy.Verdict.Accepted(expected), FastbootDataReplyPolicy.validate(reply, expected))
+            assertEquals(expected.takeIf { it > 0 }, FastbootFetchPolicy.dataSize(reply, expected))
+        }
+        for (reply in listOf("0000\u00000010", "000000１０", "+0000010", "0000001 ", "000000100")) {
+            assertEquals(-1L, RustCore.fastbootDataSize(reply))
+            assertTrue(FastbootDataReplyPolicy.validate(reply, 16) is FastbootDataReplyPolicy.Verdict.Invalid)
+            assertEquals(null, FastbootFetchPolicy.dataSize(reply, null))
+        }
+        assertEquals(FastbootDataReplyPolicy.Verdict.Mismatch(1, 16), FastbootDataReplyPolicy.validate("00000010", 1))
+        assertEquals(null, FastbootFetchPolicy.dataSize("00000010", 1))
+    }
+
     @Test fun installedTokenizerPreservesOemLiteralsAndEmptyArguments() {
         val text = """oem "" 'путь с пробелом' a\ b"""
         val tokens = mutableListOf<FastbootCommandLine.Token>()

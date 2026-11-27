@@ -161,7 +161,6 @@ class FastbootProtocol(
         val type: String? = null
     )
 
-    private data class FastbootPacket(val type: String, val payload: String, val raw: String)
 
     private data class MutablePartitionPointProbe(
         val name: String,
@@ -2135,12 +2134,8 @@ class FastbootProtocol(
             return null
         }
 
-        val raw = String(buffer, 0, bytesRead, Charsets.US_ASCII).replace("\u0000", "").trim()
-        val packet = if (raw.length < 4) {
-            FastbootPacket("UNKNOWN", raw, raw)
-        } else {
-            FastbootPacket(raw.take(4), raw.drop(4).trim(), raw)
-        }
+        val packet = FastbootPacket.decode(buffer, bytesRead)
+        val raw = packet.raw
         val roundTripUs = lastCommandSentNs?.let { ((completedNs - it).coerceAtLeast(0L)) / 1_000L } ?: -1L
         onLogVerbose(
             "[fastboot-timing] phase=in seq=$sequence command=$command type=${packet.type} bytes=$bytesRead " +

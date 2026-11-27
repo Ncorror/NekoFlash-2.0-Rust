@@ -12,15 +12,20 @@ pub enum DataReply<'a> {
     Mismatch { expected: u64, actual: u64 },
 }
 
+/// Size advertised by Fastboot DATA. Only eight ASCII hexadecimal digits are valid.
+pub fn parse_data_size(digits: &[u8]) -> Option<u32> {
+    if digits.len() != 8 || !digits.iter().all(u8::is_ascii_hexdigit) {
+        return None;
+    }
+    u32::from_str_radix(std::str::from_utf8(digits).ok()?, 16).ok()
+}
+
 /// `reply` is the payload following DATA, not the full response.
 pub fn validate_data_reply(reply: &str, expected: u64) -> DataReply<'_> {
-    if reply.len() != 8 || !reply.bytes().all(|b| b.is_ascii_hexdigit()) {
-        return DataReply::Invalid(reply);
-    }
-    match u64::from_str_radix(reply, 16) {
-        Ok(actual) if actual == expected => DataReply::Accepted(actual),
-        Ok(actual) => DataReply::Mismatch { expected, actual },
-        Err(_) => DataReply::Invalid(reply),
+    match parse_data_size(reply.as_bytes()).map(u64::from) {
+        Some(actual) if actual == expected => DataReply::Accepted(actual),
+        Some(actual) => DataReply::Mismatch { expected, actual },
+        None => DataReply::Invalid(reply),
     }
 }
 

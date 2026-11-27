@@ -9,7 +9,7 @@ Independent repository: `Ncorror/NekoFlash-2.0-Rust`. Preserve Git history, auth
 |---|---|---|
 | Android application | Kotlin UI, service ownership, permission and SAF lifecycle | Separate application ID and public workspace. |
 | `transport` | TCP deadlines and shutdown, synchronous bulk I/O on duplicated USB descriptors | Rust diagnostic queries. Kotlin and the existing C++ URB queue own the established production transports. |
-| `fastboot` | FB01/TCP framing, getvar, inventory, observed slot targets and bounded download/flash transactions | Opt-in scalar getvar via OTG/TCP. The terminal tokenizer uses Rust. The established backend handles flashing, logical partitions and recovery. |
+| `fastboot` | FB01/TCP framing, getvar, inventory, observed slot targets and bounded download/flash transactions | Opt-in scalar getvar via OTG/TCP. The terminal tokenizer and the USB download/fetch DATA size parser use Rust. The established backend handles flashing, logical partitions and recovery. |
 | `adb` | CNXN/AUTH/STLS, single-service streams, shell, SYNC and sideload | Rust checksums and opt-in Wireless ADB negotiation. Android supplies the paired TLS socket, keys, dispatcher, file operations and sideload verdicts. |
 | `images` | Sparse v1 inspection, a bounded RAW/FILL writer and ext4 group geometry | Production sparse inspection via JNI. Rust computes ext4 group and inode table sizes. Kotlin builds the metadata and streams ext4/F2FS output to the staging file. |
 | `core` and `android` | Protocol facade and a static archive linked by NDK CMake into `libnekoflash_core.so` | Four Android ABIs. JNI borrows arrays synchronously and duplicates borrowed descriptors for native I/O. |
@@ -129,3 +129,11 @@ The starter preserved the upstream history, license, notices and Android engines
 
 - Run [45868985288](https://github.com/Ncorror/NekoFlash-2.0-Rust/actions/runs/45868985288) passed 40 installed tests on API 34 and 39 on API 26. The failing wireless pairing test traced a NoSuchFieldError to spake2-kt v1.0.2. The old APK contains two reads of the JDK 9 field BigInteger.TWO, one in ScalarOps class initialization and one in scalarMul8. Android 8 lacks this field.
 - Android packaging now substitutes BigInteger.valueOf(2L) for both reads in that dependency class. The pinned pairing implementation, host credentials, STLS checks and full installed test suite are preserved. Third-party notices describe the change. The Gradle wrapper can now be executed directly from a fresh checkout as documented.
+
+- On c9fab4a, 40/40 installed tests and the filesystem checks passed on both Android 8 and 14. The Java group order and all three scalar operations matched upstream on 1,024 deterministic inputs. Release R8 compilation preserved all six JNI names at this revision. The runner created and verified the debug tester kit before GitHub refused the uploads because of the artifact storage quota. [Android CI](https://github.com/Ncorror/NekoFlash-2.0-Rust/actions/runs/45909163090)
+
+## 2026-11-27 — Fastboot DATA on Android
+
+- Android now reads the four status bytes directly from the USB packet. Display trimming cannot turn a malformed header into OKAY or DATA. The existing USB path accepts terminal NUL padding from bootloaders. An embedded NUL or extra whitespace in the advertised size fails validation before Android sends image bytes or accepts a fetch length.
+- Rust parses the eight ASCII hex digits for both Android transfer directions through JNI and for the native download engine. The Kotlin fallback retains its checked parser. Download requires the requested size, and fetch additionally requires a positive length.
+- Local verification passed 46 Rust tests, formatting and strict Clippy. The debug app and instrumentation APKs built. All 568 JVM tests passed without skips, lint reported zero findings, and the packaged JNI exports and 16 KiB ELF alignment passed for all four ABIs. The installed suite now includes a direct test of the native parser and both callers.
