@@ -260,7 +260,7 @@ jobs:
           path: android-filesystem-evidence-api26.tar.gz*
           if-no-files-found: error
           compression-level: 0
-          retention-days: 14
+          retention-days: 3
 
       - name: Upload Android API 34 evidence
         if: ${{ !cancelled() && steps.apks.outcome == 'success' }}
@@ -270,7 +270,7 @@ jobs:
           path: android-filesystem-evidence-api34.tar.gz*
           if-no-files-found: error
           compression-level: 0
-          retention-days: 14
+          retention-days: 3
 
       - name: Upload instrumentation APK
         if: ${{ !cancelled() && steps.apks.outcome == 'success' }}
@@ -279,7 +279,7 @@ jobs:
           name: NekoFlash-${{ github.sha }}-android-test
           path: app/build/outputs/apk/androidTest/debug/*.apk
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 3
 
       - name: Upload inspectable lint and JVM reports
         if: always()
@@ -291,7 +291,7 @@ jobs:
             app/build/reports/lint-results-debug.html
             app/build/test-results/testDebugUnitTest/*.xml
           if-no-files-found: warn
-          retention-days: 30
+          retention-days: 3
 
       - name: Upload Debug APK
         if: ${{ !cancelled() && steps.debug_package.outcome == 'success' }}
@@ -300,7 +300,7 @@ jobs:
           name: NekoFlash-${{ github.sha }}-debug
           path: artifacts/debug/*
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 7
 
       - name: Require and verify release signing key
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.sign_release && github.ref == 'refs/heads/main' }}
@@ -573,7 +573,7 @@ jobs:
             app/build/reports/tests/testDebugUnitTest/
             app/build/test-results/testDebugUnitTest/
           if-no-files-found: ignore
-          retention-days: 30
+          retention-days: 3
 
   tester-kit:
     name: Package verified tester APK
@@ -598,4 +598,4 @@ jobs:
           name: NekoFlash-Tester-Kit
           path: tester-kit/
           if-no-files-found: error
-          retention-days: 90
+          retention-days: 7
