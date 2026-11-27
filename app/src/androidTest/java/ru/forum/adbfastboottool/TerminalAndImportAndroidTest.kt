@@ -382,8 +382,20 @@ class TerminalAndImportAndroidTest {
             vm().terminalSnapshot().any { it.startsWith("❌") && it.contains(token) }
         }
         scenario.onActivity { activity ->
-            WindowInsetsControllerCompat(activity.window, activity.findViewById(R.id.rootCoordinator))
-                .hide(WindowInsetsCompat.Type.ime())
+            val root = activity.findViewById<View>(R.id.rootCoordinator)
+            val input = activity.findViewById<EditText>(R.id.etCommand)
+            // Exercise the app's Back path rather than a raw hide request
+            // that leaves the editor focused and can keep the IME open after
+            // landscape recreation on API 34. Do not close the sheet when
+            // there is no active editor or keyboard.
+            if (input.hasFocus() ||
+                ViewCompat.getRootWindowInsets(root)?.isVisible(WindowInsetsCompat.Type.ime()) == true
+            ) {
+                val controller = field(activity, "consoleDockController") as ConsoleDockController
+                assertTrue("Terminal did not handle keyboard dismissal", controller.handleBack())
+                assertFalse("Keyboard dismissal left the command editor focused", input.hasFocus())
+                assertTrue("Keyboard dismissal collapsed the terminal", controller.isExpanded)
+            }
         }
         try {
             waitUi(scenario, "command result rendered below the terminal header") { activity ->
